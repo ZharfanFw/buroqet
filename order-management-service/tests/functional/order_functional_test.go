@@ -131,12 +131,10 @@ func validOrderPayload() map[string]interface{} {
 		"sender_name":      "Budi Santoso",
 		"sender_phone":     "081234567890",
 		"sender_address":   "Jl. Merdeka No.1, Jakarta",
-		"origin_city":      "Jakarta",
 		"origin_postal":    "10110",
 		"receiver_name":    "Ani Rahayu",
 		"receiver_phone":   "089876543210",
 		"receiver_address": "Jl. Sudirman No.5, Bandung",
-		"dest_city":        "Bandung",
 		"dest_postal":      "40111",
 		"weight_actual":    2.0,
 		"length":           20.0,
@@ -198,9 +196,8 @@ func TestFunctional_CreateOrder_PersistedToDatabase(t *testing.T) {
 	assert.Equal(t, domain.StatusOrderCreated, order.Status)
 	assert.Equal(t, "Budi Santoso", order.SenderName)
 	assert.Equal(t, "Ani Rahayu", order.ReceiverName)
-	assert.Equal(t, domain.ServiceRegular, order.ServiceType)
 	assert.Equal(t, domain.PaymentNonCOD, order.PaymentType)
-	assert.Greater(t, order.TotalPrice, 0.0)
+	assert.Greater(t, order.TotalCost, 0.0)
 }
 
 // FT-02: Retrieving an order by AWB must return the persisted data correctly.
@@ -286,8 +283,8 @@ func TestFunctional_CreateOrder_ExpressIsMoreExpensiveThanReguler(t *testing.T) 
 	require.NoError(t, json.Unmarshal(wReg.Body.Bytes(), &regResp))
 	require.NoError(t, json.Unmarshal(wExp.Body.Bytes(), &expResp))
 
-	regPrice := regResp["data"].(map[string]interface{})["total_price"].(float64)
-	expPrice := expResp["data"].(map[string]interface{})["total_price"].(float64)
+	regPrice := regResp["data"].(map[string]interface{})["total_cost"].(float64)
+	expPrice := expResp["data"].(map[string]interface{})["total_cost"].(float64)
 
 	assert.Greater(t, expPrice, regPrice, "EXPRESS service must cost more than REGULER")
 }
@@ -349,7 +346,7 @@ func TestFunctional_CreateOrder_VolumetricWeightStoredCorrectly(t *testing.T) {
 	require.NoError(t, app.db.Where("awb_number = ?", awb).First(&order).Error)
 
 	expectedVolumetric := (30.0 * 20.0 * 10.0) / 6000.0
-	assert.InDelta(t, expectedVolumetric, order.WeightVolumetri, 0.001,
+	assert.InDelta(t, expectedVolumetric, order.VolumetricWeightKg, 0.001,
 		"Volumetric weight (L*W*H/6000) must be stored correctly in the DB")
 }
 

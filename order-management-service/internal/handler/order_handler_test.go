@@ -33,12 +33,10 @@ func validRequestBody() map[string]interface{} {
 		"sender_name":      "Budi Santoso",
 		"sender_phone":     "081234567890",
 		"sender_address":   "Jl. Merdeka No.1, Jakarta",
-		"origin_city":      "Jakarta",
 		"origin_postal":    "10110",
 		"receiver_name":    "Ani Rahayu",
 		"receiver_phone":   "089876543210",
 		"receiver_address": "Jl. Sudirman No.5, Bandung",
-		"dest_city":        "Bandung",
 		"dest_postal":      "40111",
 		"weight_actual":    2.0,
 		"length":           20.0,
@@ -73,9 +71,9 @@ func TestCreateOrderHandler_Success(t *testing.T) {
 
 	expectedResp := &domain.CreateOrderResponse{
 		AWBNumber:     "JNE-abc12345",
-		TransactionID: "txn-uuid-001",
+		PaymentRef:    "txn-uuid-001",
 		Status:        domain.StatusOrderCreated,
-		TotalPrice:    17000,
+		TotalCost:     17000,
 		PaymentURL:    "https://pay.example.com/invoice/txn-uuid-001",
 	}
 
@@ -96,7 +94,7 @@ func TestCreateOrderHandler_Success(t *testing.T) {
 	assert.True(t, body["success"].(bool))
 	data := body["data"].(map[string]interface{})
 	assert.Equal(t, "JNE-abc12345", data["awb_number"])
-	assert.Equal(t, "txn-uuid-001", data["transaction_id"])
+	assert.Equal(t, "txn-uuid-001", data["payment_ref"])
 	assert.Equal(t, string(domain.StatusOrderCreated), data["status"])
 	assert.NotEmpty(t, data["payment_url"])
 }
@@ -243,7 +241,7 @@ func TestGetOrderByAWBHandler_Success(t *testing.T) {
 		Status:       domain.StatusOrderCreated,
 		SenderName:   "Budi Santoso",
 		ReceiverName: "Ani Rahayu",
-		TotalPrice:   17000,
+		TotalCost:    17000,
 	}
 
 	mockSvc.EXPECT().
@@ -306,8 +304,7 @@ func TestGetOrderByAWBHandler_ResponseStructure(t *testing.T) {
 			Status:       domain.StatusOrderCreated,
 			SenderName:   "Sender",
 			ReceiverName: "Receiver",
-			TotalPrice:   20000,
-			ServiceType:  domain.ServiceRegular,
+			TotalCost:    20000,
 			PaymentType:  domain.PaymentNonCOD,
 		}, nil)
 
@@ -328,6 +325,5 @@ func TestGetOrderByAWBHandler_ResponseStructure(t *testing.T) {
 	data := body["data"].(map[string]interface{})
 	assert.Contains(t, data, "awb_number")
 	assert.Contains(t, data, "status")
-	assert.Contains(t, data, "total_price")
-	assert.Contains(t, data, "service_type")
+	assert.Contains(t, data, "total_cost")
 }

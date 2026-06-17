@@ -77,41 +77,71 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 	}
 
 	// --- Step 3: Generate unique identifiers ---
+	orderID := uuid.New()
 	awbNumber := generateAWB()
-	transactionID := uuid.New().String()
+	paymentRef := uuid.New().String()
 
 	// --- Step 4: Determine payment URL (only for NON-COD orders) ---
 	paymentURL := ""
 	if req.PaymentType == domain.PaymentNonCOD {
 		// In a real system this would call Payment Gateway (Midtrans/Xendit).
 		// Here we construct a placeholder URL; the actual integration is out of scope for OMS.
-		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", transactionID)
+		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", paymentRef)
+	}
+
+	var custID, svcID *uuid.UUID
+	if req.CustomerID != "" {
+		if parsed, err := uuid.Parse(req.CustomerID); err == nil {
+			custID = &parsed
+		}
+	}
+	if req.ServiceID != "" {
+		if parsed, err := uuid.Parse(req.ServiceID); err == nil {
+			svcID = &parsed
+		}
 	}
 
 	// --- Step 5: Build the Order entity and persist it ---
 	order := &domain.Order{
-		AWBNumber:       awbNumber,
-		TransactionID:   transactionID,
-		Status:          domain.StatusOrderCreated,
-		SenderName:      req.SenderName,
-		SenderPhone:     req.SenderPhone,
-		SenderAddress:   req.SenderAddress,
-		OriginCity:      req.OriginCity,
-		OriginPostal:    req.OriginPostal,
-		ReceiverName:    req.ReceiverName,
-		ReceiverPhone:   req.ReceiverPhone,
-		ReceiverAddress: req.ReceiverAddress,
-		DestCity:        req.DestCity,
-		DestPostal:      req.DestPostal,
-		WeightActual:    req.WeightActual,
-		WeightVolumetri: volumetricWeight,
-		Length:          req.Length,
-		Width:           req.Width,
-		Height:          req.Height,
-		ServiceType:     req.ServiceType,
-		PaymentType:     req.PaymentType,
-		TotalPrice:      pricingResp.TotalPrice,
-		PaymentURL:      paymentURL,
+		OrderID:            orderID,
+		AWBNumber:          awbNumber,
+		CustomerID:         custID,
+		ServiceID:          svcID,
+		SenderName:         req.SenderName,
+		SenderPhone:        req.SenderPhone,
+		SenderAddress:      req.SenderAddress,
+		OriginPostalCode:   req.OriginPostal,
+		OriginLat:          req.OriginLat,
+		OriginLng:          req.OriginLng,
+		ReceiverName:       req.ReceiverName,
+		ReceiverPhone:      req.ReceiverPhone,
+		ReceiverAddress:    req.ReceiverAddress,
+		DestPostalCode:     req.DestPostal,
+		DestLat:            req.DestLat,
+		DestLng:            req.DestLng,
+		ActualWeightKg:     req.WeightActual,
+		LengthCm:           req.Length,
+		WidthCm:            req.Width,
+		HeightCm:           req.Height,
+		VolumetricWeightKg: volumetricWeight,
+		PricingMethod:      "VOLUMETRIC",
+		BaseTariff:         pricingResp.BaseFare,
+		InsuranceFee:       pricingResp.Insurance,
+		Discount:           pricingResp.Discount,
+		TotalCost:          pricingResp.TotalPrice,
+		UseInsurance:       req.UseInsurance,
+		PaymentType:        req.PaymentType,
+		IsCod:              req.PaymentType == domain.PaymentCOD,
+		RouteID:            nil,
+		PaymentRef:         paymentRef,
+		Status:             domain.StatusOrderCreated,
+		Notes:              "",
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if chargeableWeight == req.WeightActual {
+		order.PricingMethod = "ACTUAL"
 	}
 
 	if err := s.repo.Create(ctx, order); err != nil {
@@ -121,28 +151,27 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 	// --- Step 6: Publish OrderCreated event to Kafka ---
 	event := kafka.OrderCreatedEvent{
 		AWBNumber:     awbNumber,
-		TransactionID: transactionID,
+		TransactionID: paymentRef,
 		SenderName:    req.SenderName,
 		SenderAddress: req.SenderAddress,
-		OriginCity:    req.OriginCity,
+		OriginCity:    "", // deprecated in Supabase
 		ReceiverName:  req.ReceiverName,
-		DestCity:      req.DestCity,
+		DestCity:      "", // deprecated in Supabase
 		ServiceType:   string(req.ServiceType),
 		TotalPrice:    pricingResp.TotalPrice,
 		CreatedAt:     time.Now(),
 	}
 
 	if err := s.kafkaProducer.PublishOrderCreated(ctx, event); err != nil {
-		// Non-fatal: order is already persisted. Log and continue.
-		// In production you'd push to a dead-letter queue or an outbox table.
 		fmt.Printf("[WARN] failed to publish OrderCreated event for AWB %s: %v\n", awbNumber, err)
 	}
 
 	return &domain.CreateOrderResponse{
+		OrderID:       orderID.String(),
 		AWBNumber:     awbNumber,
-		TransactionID: transactionID,
+		PaymentRef:    paymentRef,
 		Status:        domain.StatusOrderCreated,
-		TotalPrice:    pricingResp.TotalPrice,
+		TotalCost:     pricingResp.TotalPrice,
 		PaymentURL:    paymentURL,
 	}, nil
 }
