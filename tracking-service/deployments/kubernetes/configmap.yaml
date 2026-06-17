@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tracking-config
+  labels:
+    app: tracking-service
+data:
+  mongo_db: "tracking_db"
+  redis_addr: "redis-service:6379"
+  kafka_broker: "kafka-service:9092"
+  app_port: "8080"

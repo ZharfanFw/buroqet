@@ -1,0 +1,8 @@
+services:
+  epod-service:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+
+    ports:
+      - "8080:8080"

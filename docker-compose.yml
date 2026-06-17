@@ -1,0 +1,249 @@
+version: '3.9'
+
+# ================================================================
+# Buroqet — Local Development Stack
+# Run: docker compose up -d
+# ================================================================
+
+networks:
+  buroqet-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+
+services:
+
+  # ─── Infrastructure ─────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: buroqet-postgres
+    environment:
+      POSTGRES_USER: buroqet
+      POSTGRES_PASSWORD: buroqet123
+      POSTGRES_DB: buroqet
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [buroqet-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buroqet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    container_name: buroqet-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: buroqet
+      MONGO_INITDB_ROOT_PASSWORD: buroqet123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks: [buroqet-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: buroqet-redis
+    command: redis-server --requirepass buroqet123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks: [buroqet-net]
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: buroqet-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks: [buroqet-net]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: buroqet-kafka
+    depends_on: [zookeeper]
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks: [buroqet-net]
+
+  # ─── Backend Services ────────────────────────────────────────
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-auth
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: buroqet
+      DB_PASSWORD: buroqet123
+      DB_NAME: buroqet
+      JWT_SECRET: change-me-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [buroqet-net]
+    restart: on-failure
+
+  tracking-service:
+    build:
+      context: ./tracking-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-tracking
+    ports:
+      - "8081:8081"
+    environment:
+      MONGO_URI: mongodb://buroqet:buroqet123@mongodb:27017
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: buroqet123
+      KAFKA_BROKERS: kafka:29092
+    depends_on: [mongodb, redis, kafka]
+    networks: [buroqet-net]
+    restart: on-failure
+
+  order-management-service:
+    build:
+      context: ./order-management-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-order
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: buroqet
+      DB_PASSWORD: buroqet123
+      DB_NAME: buroqet
+      KAFKA_BROKERS: kafka:29092
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [buroqet-net]
+    restart: on-failure
+
+  dispatch-fleet-service:
+    build:
+      context: ./dispatch-fleet-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-dispatch
+    ports:
+      - "8083:8083"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: buroqet
+      DB_PASSWORD: buroqet123
+      DB_NAME: buroqet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [buroqet-net]
+    restart: on-failure
+
+  pricing-service:
+    build:
+      context: ./pricing-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-pricing
+    ports:
+      - "8084:8084"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: buroqet
+      DB_PASSWORD: buroqet123
+      DB_NAME: buroqet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [buroqet-net]
+    restart: on-failure
+
+  settlement-service:
+    build:
+      context: ./settlement-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-settlement
+    ports:
+      - "8085:8085"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: buroqet
+      DB_PASSWORD: buroqet123
+      DB_NAME: buroqet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [buroqet-net]
+    restart: on-failure
+
+  epod-service:
+    build:
+      context: ./epod-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-epod
+    ports:
+      - "8086:8086"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: buroqet
+      DB_PASSWORD: buroqet123
+      DB_NAME: buroqet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [buroqet-net]
+    restart: on-failure
+
+  warehouse-service:
+    build:
+      context: ./warehouse-service
+      dockerfile: deployments/Dockerfile
+    container_name: buroqet-warehouse
+    ports:
+      - "8087:8087"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: buroqet
+      DB_PASSWORD: buroqet123
+      DB_NAME: buroqet
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [buroqet-net]
+    restart: on-failure
+
+  # ─── Frontend ────────────────────────────────────────────────
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: buroqet-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - auth-service
+      - tracking-service
+    networks: [buroqet-net]

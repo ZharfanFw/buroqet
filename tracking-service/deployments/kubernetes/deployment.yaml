@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracking-service
+  labels:
+    app: tracking-service
+    version: "1.0"
+    owner: zharfan
+spec:
+  # Tracking service adalah yang paling banyak di-hit (5K-10K RPS)
+  # Minimal 3 replika untuk High Availability dan load distribution
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: tracking-service
+
+  # Rolling Update — zero downtime deployment
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Boleh ada 1 pod extra saat update
+      maxUnavailable: 0  # Tidak boleh ada pod yang mati saat update
+
+  template:
+    metadata:
+      labels:
+        app: tracking-service
+
+    spec:
+      containers:
+        - name: tracking-service
+          image: madeu30/tracking-service:latest
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8080
+
+          # Environment variable dari ConfigMap dan Secret
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: tracking-secret
+                  key: mongo_uri
+            - name: MONGO_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: tracking-config
+                  key: mongo_db
+            - name: REDIS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: tracking-config
+                  key: redis_addr
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tracking-secret
+                  key: redis_password
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: tracking-config
+                  key: kafka_broker
+            - name: APP_PORT
+              value: "8080"
+
+          # Resource limits — tracking service butuh lebih banyak resource
+          # karena load 5K-10K RPS
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+
+          # Liveness Probe: "Apakah aplikasi masih hidup?"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+            timeoutSeconds: 5
+
+          # Readiness Probe: "Apakah aplikasi sudah siap terima traffic?"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 3

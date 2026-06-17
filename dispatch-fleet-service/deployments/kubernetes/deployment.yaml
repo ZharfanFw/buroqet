@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispatch-fleet-deployment
+  labels:
+    app: dispatch-fleet
+spec:
+  replicas: 2 # Kamu bisa atur jumlah replika sesuai spek tugas
+  selector:
+    matchLabels:
+      app: dispatch-fleet
+  template:
+    metadata:
+      labels:
+        app: dispatch-fleet
+    spec:
+      containers:
+      - name: dispatch-fleet
+        image: imamaziz/dispatch-fleet:v1 # Merujuk ke image yang kamu push tadi
+        ports:
+        - containerPort: 8081
+        env:
+        - name: DB_HOST
+          value: "dispatch-db-service" # Nama service DB di K8s nanti

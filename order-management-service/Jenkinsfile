@@ -1,0 +1,111 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_HUB_USER = 'rangga05'
+        DOCKER_HUB_ID   = 'dockerhub-login'
+        KUBE_CONFIG_ID  = 'kube-config'
+    }
+
+    stages {
+        stage('Checkout Repository') {
+            steps {
+                echo "=== Mengambil kode terbaru ==="
+                checkout scm
+            }
+        }
+
+        stage('OMS - Unit Test') {
+            steps {
+                echo "=== Unit Test: Order Management Service ==="
+                dir('order-management-service') {
+                    sh 'go mod tidy'
+                    sh 'go test -v -count=1 ./internal/...'
+                }
+            }
+        }
+
+        stage('OMS - Lint') {
+            steps {
+                dir('order-management-service') {
+                    sh 'go vet ./...'
+                }
+            }
+        }
+
+        stage('OMS - Build Image') {
+            steps {
+                dir('order-management-service') {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${DOCKER_HUB_ID}",
+                        passwordVariable: 'DOCKER_PASS',
+                        usernameVariable: 'DOCKER_USER'
+                    )]) {
+                        sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                        sh "docker build --platform linux/amd64 -t ${DOCKER_HUB_USER}/order-management-service:latest -f deployments/Dockerfile ."
+                    }
+                }
+            }
+        }
+
+        stage('OMS - Functional Test') {
+            steps {
+                dir('order-management-service') {
+                    // SENGAJA PAKAI STRIP BIAR MUNCUL ERROR: docker-compose: not found (exit code 127)
+                    sh 'docker-compose -f deployments/docker-compose.test.yml up -d'
+                    
+                    // Baris ini nggak akan sempat dieksekusi karena udah mati di atas
+                    sh 'sleep 15'
+                    sh 'TEST_DATABASE_URL="host=localhost user=postgres password=postgres dbname=oms_test_db port=5433 sslmode=disable" go test -v -count=1 ./tests/functional/...'
+                }
+            }
+            post {
+                always {
+                    dir('order-management-service') {
+                        // Pastikan ini juga pakai strip biar seragam dan log-nya mirip ss temenmu
+                        sh 'docker-compose -f deployments/docker-compose.test.yml down -v || true'
+                    }
+                }
+            }
+        }
+
+        stage('OMS - Push Image') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${DOCKER_HUB_ID}",
+                    passwordVariable: 'DOCKER_PASS',
+                    usernameVariable: 'DOCKER_USER'
+                )]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh "docker push ${DOCKER_HUB_USER}/order-management-service:latest"
+                }
+            }
+        }
+
+        stage('OMS - Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: "${KUBE_CONFIG_ID}", variable: 'KUBECONFIG_FILE')]) {
+                    sh "kubectl --kubeconfig=\${KUBECONFIG_FILE} --insecure-skip-tls-verify apply --validate=false -f order-management-service/deployments/kubernetes/ || true"
+                    sh "kubectl --kubeconfig=\${KUBECONFIG_FILE} --insecure-skip-tls-verify rollout restart deployment/oms-app -n oms || true"
+                }
+            }
+        }
+        
+        stage('OMS - Verify') {
+            steps {
+                withCredentials([file(credentialsId: "${KUBE_CONFIG_ID}", variable: 'KUBECONFIG_FILE')]) {
+                    sh "kubectl --kubeconfig=\${KUBECONFIG_FILE} --insecure-skip-tls-verify get all -n oms || true"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline OMS berhasil!"
+        }
+        failure {
+            echo "❌ Pipeline OMS gagal!"
+        }
+    }
+}

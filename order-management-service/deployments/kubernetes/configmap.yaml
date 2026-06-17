@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oms-config
+  namespace: oms
+data:
+  DATABASE_URL: "host=oms-postgres user=postgres password=postgres dbname=oms_db port=5432 sslmode=disable"
+  KAFKA_BROKER: "oms-kafka:9092"
+  PORT: "8080"

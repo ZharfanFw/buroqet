@@ -1,0 +1,11 @@
+version: '3.9'
+
+services:
+  pricing-service:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+
+    container_name: pricing-service-test
+    ports:
+      - "8081:8080"

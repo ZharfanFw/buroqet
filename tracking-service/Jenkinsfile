@@ -1,0 +1,145 @@
+// Jenkinsfile untuk Tracking & Status Service
+// Letakkan di: tracking-service/Jenkinsfile
+//
+// Konfigurasi di Jenkins:
+//   Pipeline > Definition: Pipeline script from SCM
+//   Script Path: tracking-service/Jenkinsfile
+//
+// Catatan: Workspace Jenkins tetap di root repo saat checkout,
+// sehingga dir('tracking-service') masih diperlukan untuk
+// menjalankan perintah Go di dalam direktori service ini.
+
+pipeline {
+    agent any
+
+    tools {
+        go 'go-1.22'
+    }
+
+    environment {
+        DOCKER_HUB_ID  = 'dockerhub-login'
+        KUBE_CONFIG_ID = 'kube-config'
+    }
+
+    stages {
+
+        stage('Checkout Repository') {
+            steps {
+                echo "=== Mengambil kode terbaru ==="
+                checkout scm
+            }
+        }
+
+        // ── 1. UNIT TEST ───────────────────────────────────────────
+
+        stage('Tracking - Unit Test') {
+            steps {
+                echo "=== Unit Test: Tracking Service ==="
+                dir('tracking-service') {
+                    sh 'go mod tidy'
+                    sh 'go test -v -count=1 ./internal/...'
+                }
+            }
+        }
+
+        // ── 2. LINT / VET ──────────────────────────────────────────
+
+        stage('Tracking - Lint') {
+            steps {
+                dir('tracking-service') {
+                    sh 'go vet ./...'
+                }
+            }
+        }
+
+        // ── 3. BUILD IMAGE ─────────────────────────────────────────
+
+        stage('Tracking - Build Image') {
+            steps {
+                dir('tracking-service') {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${DOCKER_HUB_ID}",
+                        passwordVariable: 'DOCKER_PASS',
+                        usernameVariable: 'DOCKER_USER'
+                    )]) {
+                        sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                        sh "docker build -t \$DOCKER_USER/tracking-service:latest -f deployments/Dockerfile ."
+                    }
+                }
+            }
+        }
+
+        // ── 4. FUNCTIONAL TEST ─────────────────────────────────────
+        // Pipeline GAGAL di sini jika test tidak lulus.
+        // (Saat ini semua test FAIL karena implementasi DB masih placeholder)
+
+        stage('Tracking - Functional Test') {
+            steps {
+                dir('tracking-service') {
+                    echo "=== Menjalankan Functional Test ==="
+                    sh 'docker-compose -f deployments/docker-compose.test.yml up -d'
+                    sh 'sleep 20'
+                    sh '''
+                        TEST_MONGO_URI="mongodb://testuser:testpass@localhost:27018/tracking_test?authSource=admin" \
+                        TEST_REDIS_ADDR="localhost:6380" \
+                        go test -v -tags=functional -count=1 ./tests/functional/...
+                    '''
+                }
+            }
+            post {
+                // Container selalu dimatikan, baik test PASS maupun FAIL
+                always {
+                    dir('tracking-service') {
+                        sh 'docker-compose -f deployments/docker-compose.test.yml down -v || true'
+                    }
+                }
+            }
+        }
+
+        // ── 5. PUSH IMAGE ──────────────────────────────────────────
+
+        stage('Tracking - Push Image') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "${DOCKER_HUB_ID}",
+                    passwordVariable: 'DOCKER_PASS',
+                    usernameVariable: 'DOCKER_USER'
+                )]) {
+                    sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+                    sh "docker push \$DOCKER_USER/tracking-service:latest"
+                }
+            }
+        }
+
+        // ── 6. DEPLOY KE KUBERNETES ────────────────────────────────
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: "${KUBE_CONFIG_ID}", variable: 'KUBECONFIG_FILE')]) {
+                    echo "=== Deploying Tracking Service to Kubernetes ==="
+                    sh "kubectl --kubeconfig=\"\$KUBECONFIG_FILE\" apply -f tracking-service/deployments/kubernetes/ --validate=false"
+                }
+            }
+        }
+
+        // ── 7. VERIFY ──────────────────────────────────────────────
+
+        stage('Verify Deployment') {
+            steps {
+                withCredentials([file(credentialsId: "${KUBE_CONFIG_ID}", variable: 'KUBECONFIG_FILE')]) {
+                    sh "kubectl --kubeconfig=\"\$KUBECONFIG_FILE\" get pods -l app=tracking-service"
+                    sh "kubectl --kubeconfig=\"\$KUBECONFIG_FILE\" get svc tracking-service"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline berhasil! Tracking Service sudah ter-deploy ke Kubernetes."
+        }
+        failure {
+            echo "❌ Pipeline gagal! Periksa log build untuk detail error."
+        }
+    }
+}

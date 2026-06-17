@@ -1,0 +1,20 @@
+# deployments/kubernetes/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warehouse-config
+data:
+  db_host: "postgres-service"         # Nama service PostgreSQL di Kubernetes
+  db_name: "wms_db"
+  kafka_broker: "kafka-service:9092"
+  app_port: "8080"
+---
+# Secret untuk data sensitif (disimpan base64 encoded)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: warehouse-secret
+type: Opaque
+data:
+  db_password: cGFzc3dvcmQxMjM=
+  db_user: d21zdXNlcg==

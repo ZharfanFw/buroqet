@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: epod-service
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: epod-service
+
+  template:
+    metadata:
+      labels:
+        app: epod-service
+
+    spec:
+      containers:
+        - name: epod-service
+          image: arpusauri/epod-service:latest
+
+          ports:
+            - containerPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: epod-service
+
+spec:
+  selector:
+    app: epod-service
+
+  ports:
+    - port: 80
+      targetPort: 8080
+
+  type: ClusterIP

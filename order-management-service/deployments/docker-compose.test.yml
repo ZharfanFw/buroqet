@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  oms-service:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    container_name: oms-service-test
+    ports:
+      - "8081:8080"
