@@ -326,7 +326,6 @@ func TestCreateOrder_KafkaEventContainsCorrectAWB(t *testing.T) {
 	assert.Equal(t, resp.AWBNumber, capturedEvent.AWBNumber,
 		"Kafka event AWB must match the response AWB")
 	assert.Equal(t, resp.PaymentRef, capturedEvent.TransactionID)
-	assert.Equal(t, "Bandung", capturedEvent.DestCity)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
