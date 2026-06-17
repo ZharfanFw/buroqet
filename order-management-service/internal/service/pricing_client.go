@@ -29,7 +29,7 @@ func NewHTTPPricingClient(baseURL string) PricingClient {
 	}
 }
 
-func (c *httpPricingClient) GetPrice(ctx context.Context, req model.PricingRequest) (*model.PricingResponse, error) {
+func (c *httpPricingClient) GetPrice(ctx context.Context, req domain.PricingRequest) (*domain.PricingResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (c *httpPricingClient) GetPrice(ctx context.Context, req model.PricingReque
 		return nil, fmt.Errorf("pricing service returned status %d", resp.StatusCode)
 	}
 
-	var pricingResp model.PricingResponse
+	var pricingResp domain.PricingResponse
 	if err := json.NewDecoder(resp.Body).Decode(&pricingResp); err != nil {
 		return nil, err
 	}
@@ -62,12 +62,12 @@ func (c *httpPricingClient) GetPrice(ctx context.Context, req model.PricingReque
 // It returns a hardcoded price so the rest of the OMS can be developed/tested independently.
 type stubPricingClient struct{}
 
-func (s *stubPricingClient) GetPrice(_ context.Context, req model.PricingRequest) (*model.PricingResponse, error) {
+func (s *stubPricingClient) GetPrice(_ context.Context, req domain.PricingRequest) (*domain.PricingResponse, error) {
 	baseFare := 15000.0
-	if req.ServiceType == model.ServiceExpress {
+	if req.ServiceType == domain.ServiceExpress {
 		baseFare = 30000.0
 	}
-	return &model.PricingResponse{
+	return &domain.PricingResponse{
 		BaseFare:     baseFare,
 		Insurance:    2000.0,
 		Discount:     0,

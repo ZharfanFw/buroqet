@@ -13,10 +13,10 @@ import (
 // OrderRepository defines the contract for order persistence operations.
 // This interface is used so the service layer can be tested without a real DB.
 type OrderRepository interface {
-	Create(ctx context.Context, order *model.Order) error
-	FindByAWB(ctx context.Context, awbNumber string) (*model.Order, error)
-	FindByTransactionID(ctx context.Context, transactionID string) (*model.Order, error)
-	UpdateStatus(ctx context.Context, awbNumber string, status model.OrderStatus) error
+	Create(ctx context.Context, order *domain.Order) error
+	FindByAWB(ctx context.Context, awbNumber string) (*domain.Order, error)
+	FindByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error)
+	UpdateStatus(ctx context.Context, awbNumber string, status domain.OrderStatus) error
 }
 
 // orderRepository is the GORM-backed implementation of OrderRepository.
@@ -31,14 +31,14 @@ func NewOrderRepository(db *gorm.DB) OrderRepository {
 
 // Create persists a new order record. It relies on GORM to write all fields
 // and will surface any DB-level constraint violations (e.g. duplicate AWB).
-func (r *orderRepository) Create(ctx context.Context, order *model.Order) error {
+func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error {
 	return r.db.WithContext(ctx).Create(order).Error
 }
 
 // FindByAWB retrieves an order by its unique AWB number.
 // Returns gorm.ErrRecordNotFound when no matching row exists.
-func (r *orderRepository) FindByAWB(ctx context.Context, awbNumber string) (*model.Order, error) {
-	var order model.Order
+func (r *orderRepository) FindByAWB(ctx context.Context, awbNumber string) (*domain.Order, error) {
+	var order domain.Order
 	err := r.db.WithContext(ctx).
 		Where("awb_number = ?", awbNumber).
 		First(&order).Error
@@ -49,8 +49,8 @@ func (r *orderRepository) FindByAWB(ctx context.Context, awbNumber string) (*mod
 }
 
 // FindByTransactionID retrieves an order by its unique transaction ID.
-func (r *orderRepository) FindByTransactionID(ctx context.Context, transactionID string) (*model.Order, error) {
-	var order model.Order
+func (r *orderRepository) FindByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error) {
+	var order domain.Order
 	err := r.db.WithContext(ctx).
 		Where("transaction_id = ?", transactionID).
 		First(&order).Error
@@ -61,9 +61,9 @@ func (r *orderRepository) FindByTransactionID(ctx context.Context, transactionID
 }
 
 // UpdateStatus changes the lifecycle status of an existing order.
-func (r *orderRepository) UpdateStatus(ctx context.Context, awbNumber string, status model.OrderStatus) error {
+func (r *orderRepository) UpdateStatus(ctx context.Context, awbNumber string, status domain.OrderStatus) error {
 	return r.db.WithContext(ctx).
-		Model(&model.Order{}).
+		Model(&domain.Order{}).
 		Where("awb_number = ?", awbNumber).
 		Update("status", status).Error
 }

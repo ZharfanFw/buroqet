@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"order-management-service/internal/kafka"
 	"order-management-service/internal/domain"
+	"order-management-service/internal/kafka"
 	"order-management-service/internal/repository"
 
 	"github.com/google/uuid"
@@ -17,13 +17,13 @@ import (
 // PricingClient defines the contract for calling the external Pricing & Routing Service.
 // Using an interface keeps the service unit-testable without a real HTTP call.
 type PricingClient interface {
-	GetPrice(ctx context.Context, req model.PricingRequest) (*model.PricingResponse, error)
+	GetPrice(ctx context.Context, req domain.PricingRequest) (*domain.PricingResponse, error)
 }
 
 // OrderService defines the public business operations for the OMS.
 type OrderService interface {
-	CreateOrder(ctx context.Context, req model.CreateOrderRequest) (*model.CreateOrderResponse, error)
-	GetOrderByAWB(ctx context.Context, awbNumber string) (*model.Order, error)
+	CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.CreateOrderResponse, error)
+	GetOrderByAWB(ctx context.Context, awbNumber string) (*domain.Order, error)
 }
 
 // orderService is the concrete implementation.
@@ -53,12 +53,20 @@ func NewOrderService(
 //  4. Persist the order to PostgreSQL.
 //  5. Publish OrderCreated event to Kafka for Dispatch Service.
 //  6. Return the response DTO to the handler.
-func (s *orderService) CreateOrder(ctx context.Context, req model.CreateOrderRequest) (*model.CreateOrderResponse, error) {
-	// --- Step 1: Get pricing from Pricing & Routing Service ---
-	pricingResp, err := s.pricingClient.GetPrice(ctx, model.PricingRequest{
+func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.CreateOrderResponse, error) {
+	// --- Step 1: Calculate volumetric & chargeable weight ---
+	// Industry standard: L x W x H / 6000
+	volumetricWeight := (req.Length * req.Width * req.Height) / 6000
+	chargeableWeight := req.WeightActual
+	if volumetricWeight > req.WeightActual {
+		chargeableWeight = volumetricWeight
+	}
+
+	// --- Step 2: Get pricing from Pricing & Routing Service ---
+	pricingResp, err := s.pricingClient.GetPrice(ctx, domain.PricingRequest{
 		OriginPostal: req.OriginPostal,
 		DestPostal:   req.DestPostal,
-		Weight:       req.WeightActual,
+		Weight:       chargeableWeight,
 		Length:       req.Length,
 		Width:        req.Width,
 		Height:       req.Height,
@@ -68,26 +76,23 @@ func (s *orderService) CreateOrder(ctx context.Context, req model.CreateOrderReq
 		return nil, fmt.Errorf("failed to get pricing: %w", err)
 	}
 
-	// --- Step 2: Calculate volumetric weight (L x W x H / 6000 is the industry standard) ---
-	volumetricWeight := (req.Length * req.Width * req.Height) / 6000
-
 	// --- Step 3: Generate unique identifiers ---
 	awbNumber := generateAWB()
 	transactionID := uuid.New().String()
 
 	// --- Step 4: Determine payment URL (only for NON-COD orders) ---
 	paymentURL := ""
-	if req.PaymentType == model.PaymentNonCOD {
+	if req.PaymentType == domain.PaymentNonCOD {
 		// In a real system this would call Payment Gateway (Midtrans/Xendit).
 		// Here we construct a placeholder URL; the actual integration is out of scope for OMS.
 		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", transactionID)
 	}
 
 	// --- Step 5: Build the Order entity and persist it ---
-	order := &model.Order{
+	order := &domain.Order{
 		AWBNumber:       awbNumber,
 		TransactionID:   transactionID,
-		Status:          model.StatusOrderCreated,
+		Status:          domain.StatusOrderCreated,
 		SenderName:      req.SenderName,
 		SenderPhone:     req.SenderPhone,
 		SenderAddress:   req.SenderAddress,
@@ -133,17 +138,17 @@ func (s *orderService) CreateOrder(ctx context.Context, req model.CreateOrderReq
 		fmt.Printf("[WARN] failed to publish OrderCreated event for AWB %s: %v\n", awbNumber, err)
 	}
 
-	return &model.CreateOrderResponse{
+	return &domain.CreateOrderResponse{
 		AWBNumber:     awbNumber,
 		TransactionID: transactionID,
-		Status:        model.StatusOrderCreated,
+		Status:        domain.StatusOrderCreated,
 		TotalPrice:    pricingResp.TotalPrice,
 		PaymentURL:    paymentURL,
 	}, nil
 }
 
 // GetOrderByAWB fetches order details by AWB number.
-func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*model.Order, error) {
+func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*domain.Order, error) {
 	order, err := s.repo.FindByAWB(ctx, awbNumber)
 	if err != nil {
 		return nil, fmt.Errorf("order not found: %w", err)

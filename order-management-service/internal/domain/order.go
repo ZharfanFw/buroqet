@@ -1,4 +1,4 @@
-package model
+package domain
 
 import (
 	"time"
@@ -119,9 +119,9 @@ type PricingRequest struct {
 
 // PricingResponse is received from Pricing & Routing Service
 type PricingResponse struct {
-	BaseFare    float64 `json:"base_fare"`
-	Insurance   float64 `json:"insurance"`
-	Discount    float64 `json:"discount"`
-	TotalPrice  float64 `json:"total_price"`
-	EstimatedSLA string `json:"estimated_sla"`
+	BaseFare     float64 `json:"base_fare"`
+	Insurance    float64 `json:"insurance"`
+	Discount     float64 `json:"discount"`
+	TotalPrice   float64 `json:"total_price"`
+	EstimatedSLA string  `json:"estimated_sla"`
 }

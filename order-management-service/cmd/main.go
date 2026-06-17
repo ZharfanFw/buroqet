@@ -4,9 +4,9 @@ import (
 	"log"
 	"os"
 
+	"order-management-service/internal/domain"
 	"order-management-service/internal/handler"
 	"order-management-service/internal/kafka"
-	"order-management-service/internal/domain"
 	"order-management-service/internal/repository"
 	"order-management-service/internal/service"
 
@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// Auto-migrate will create/update the orders table based on the model struct
-	if err := db.AutoMigrate(&model.Order{}); err != nil {
+	if err := db.AutoMigrate(&domain.Order{}); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 

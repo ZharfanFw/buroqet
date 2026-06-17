@@ -9,9 +9,9 @@ import (
 	"os"
 	"testing"
 
+	"order-management-service/internal/domain"
 	"order-management-service/internal/handler"
 	"order-management-service/internal/kafka"
-	"order-management-service/internal/domain"
 	"order-management-service/internal/repository"
 	"order-management-service/internal/service"
 
@@ -55,7 +55,7 @@ func setupTestApp(t *testing.T) *testApp {
 	}
 
 	// Auto-migrate creates/updates the orders table for the test database
-	require.NoError(t, db.AutoMigrate(&model.Order{}))
+	require.NoError(t, db.AutoMigrate(&domain.Order{}))
 
 	// Use stub implementations so functional tests only need a DB,
 	// not a running Kafka broker or Pricing Service
@@ -92,12 +92,12 @@ func newStubPricingClient() service.PricingClient {
 	return &stubPricingClient{}
 }
 
-func (s *stubPricingClient) GetPrice(_ context.Context, req model.PricingRequest) (*model.PricingResponse, error) {
+func (s *stubPricingClient) GetPrice(_ context.Context, req domain.PricingRequest) (*domain.PricingResponse, error) {
 	baseFare := 15000.0
-	if req.ServiceType == model.ServiceExpress {
+	if req.ServiceType == domain.ServiceExpress {
 		baseFare = 30000.0
 	}
-	return &model.PricingResponse{
+	return &domain.PricingResponse{
 		BaseFare:     baseFare,
 		Insurance:    2000,
 		Discount:     0,
@@ -190,16 +190,16 @@ func TestFunctional_CreateOrder_PersistedToDatabase(t *testing.T) {
 	assert.NotEmpty(t, awb)
 
 	// Assert the order is actually in the database
-	var order model.Order
+	var order domain.Order
 	err := app.db.Where("awb_number = ?", awb).First(&order).Error
 	require.NoError(t, err, "Order must be persisted to the database")
 
 	assert.Equal(t, awb, order.AWBNumber)
-	assert.Equal(t, model.StatusOrderCreated, order.Status)
+	assert.Equal(t, domain.StatusOrderCreated, order.Status)
 	assert.Equal(t, "Budi Santoso", order.SenderName)
 	assert.Equal(t, "Ani Rahayu", order.ReceiverName)
-	assert.Equal(t, model.ServiceRegular, order.ServiceType)
-	assert.Equal(t, model.PaymentNonCOD, order.PaymentType)
+	assert.Equal(t, domain.ServiceRegular, order.ServiceType)
+	assert.Equal(t, domain.PaymentNonCOD, order.PaymentType)
 	assert.Greater(t, order.TotalPrice, 0.0)
 }
 
@@ -227,7 +227,7 @@ func TestFunctional_GetOrderByAWB_ReturnsPersistedData(t *testing.T) {
 
 	data := getResp["data"].(map[string]interface{})
 	assert.Equal(t, awb, data["awb_number"])
-	assert.Equal(t, string(model.StatusOrderCreated), data["status"])
+	assert.Equal(t, string(domain.StatusOrderCreated), data["status"])
 	assert.Equal(t, "Budi Santoso", data["sender_name"])
 }
 
@@ -345,7 +345,7 @@ func TestFunctional_CreateOrder_VolumetricWeightStoredCorrectly(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	awb := resp["data"].(map[string]interface{})["awb_number"].(string)
 
-	var order model.Order
+	var order domain.Order
 	require.NoError(t, app.db.Where("awb_number = ?", awb).First(&order).Error)
 
 	expectedVolumetric := (30.0 * 20.0 * 10.0) / 6000.0
@@ -368,6 +368,6 @@ func TestFunctional_CreateOrder_InvalidPayload_NoDBRecord(t *testing.T) {
 
 	// Verify no record was inserted
 	var count int64
-	app.db.Model(&model.Order{}).Count(&count)
+	app.db.Model(&domain.Order{}).Count(&count)
 	assert.Equal(t, int64(0), count, "No order must be saved when the request payload is invalid")
 }
