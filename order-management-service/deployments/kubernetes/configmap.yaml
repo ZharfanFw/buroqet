@@ -4,6 +4,6 @@ metadata:
   name: oms-config
   namespace: oms
 data:
-  DATABASE_URL: "host=oms-postgres user=postgres password=postgres dbname=oms_db port=5432 sslmode=disable"
+  DATABASE_URL: "postgresql://postgres:HfuyrF1xd1iUVagY@db.gvmknmaybejslbghzsov.supabase.co:5432/postgres"
   KAFKA_BROKER: "oms-kafka:9092"
   PORT: "8080"
