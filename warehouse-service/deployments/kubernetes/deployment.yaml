@@ -1,9 +1,9 @@
 # deployments/kubernetes/deployment.yaml
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: warehouse-service
+  namespace: buroqet
   labels:
     app: warehouse-service
     version: "1.0"
@@ -27,9 +27,12 @@ spec:
         app: warehouse-service
     
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: warehouse-service
-          image: madeu30/warehouse-service:latest
+          # GANTI <your-github-username> dengan username GitHub org kalian
+          image: ghcr.io/zharfanfw/warehouse-service:latest
           imagePullPolicy: Always
           
           ports:
@@ -42,6 +45,16 @@ spec:
                 configMapKeyRef:
                   name: warehouse-config
                   key: db_host
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: warehouse-secret
+                  key: db_user
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: warehouse-config
+                  key: db_name
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:

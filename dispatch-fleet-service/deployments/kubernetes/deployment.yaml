@@ -1,24 +1,72 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dispatch-fleet-deployment
+  name: dispatch-fleet-service
+  namespace: buroqet
   labels:
-    app: dispatch-fleet
+    app: dispatch-fleet-service
 spec:
-  replicas: 2 # Kamu bisa atur jumlah replika sesuai spek tugas
+  replicas: 1
   selector:
     matchLabels:
-      app: dispatch-fleet
+      app: dispatch-fleet-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
-        app: dispatch-fleet
+        app: dispatch-fleet-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
-      - name: dispatch-fleet
-        image: imamaziz/dispatch-fleet:v1 # Merujuk ke image yang kamu push tadi
-        ports:
-        - containerPort: 8081
-        env:
-        - name: DB_HOST
-          value: "dispatch-db-service" # Nama service DB di K8s nanti
+        - name: dispatch-fleet-service
+          # GANTI <your-github-username> dengan username GitHub org kalian
+          image: ghcr.io/zharfanfw/dispatch-fleet-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: dispatch-config
+                  key: db_host
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: dispatch-secret
+                  key: db_user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dispatch-secret
+                  key: db_password
+            - name: DB_NAME
+              value: "dispatch_db"
+            - name: APP_PORT
+              value: "8081"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10

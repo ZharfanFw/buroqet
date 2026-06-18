@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"order-management-service/internal/handler"
 	"order-management-service/internal/domain"
+	"order-management-service/internal/handler"
 	"order-management-service/mocks"
 
 	"github.com/gin-gonic/gin"
@@ -33,19 +33,17 @@ func validRequestBody() map[string]interface{} {
 		"sender_name":      "Budi Santoso",
 		"sender_phone":     "081234567890",
 		"sender_address":   "Jl. Merdeka No.1, Jakarta",
-		"origin_city":      "Jakarta",
 		"origin_postal":    "10110",
 		"receiver_name":    "Ani Rahayu",
 		"receiver_phone":   "089876543210",
 		"receiver_address": "Jl. Sudirman No.5, Bandung",
-		"dest_city":        "Bandung",
 		"dest_postal":      "40111",
 		"weight_actual":    2.0,
 		"length":           20.0,
 		"width":            15.0,
 		"height":           10.0,
-		"service_type":     "REGULER",
-		"payment_type":     "NON_COD",
+		"service_type":     "REG",
+		"payment_type":     "TRANSFER",
 	}
 }
 
@@ -71,11 +69,11 @@ func TestCreateOrderHandler_Success(t *testing.T) {
 	h := handler.NewOrderHandler(mockSvc)
 	router := setupRouter(h)
 
-	expectedResp := &model.CreateOrderResponse{
+	expectedResp := &domain.CreateOrderResponse{
 		AWBNumber:     "JNE-abc12345",
-		TransactionID: "txn-uuid-001",
-		Status:        model.StatusOrderCreated,
-		TotalPrice:    17000,
+		PaymentRef:    "txn-uuid-001",
+		Status:        domain.StatusOrderCreated,
+		TotalCost:     17000,
 		PaymentURL:    "https://pay.example.com/invoice/txn-uuid-001",
 	}
 
@@ -96,8 +94,8 @@ func TestCreateOrderHandler_Success(t *testing.T) {
 	assert.True(t, body["success"].(bool))
 	data := body["data"].(map[string]interface{})
 	assert.Equal(t, "JNE-abc12345", data["awb_number"])
-	assert.Equal(t, "txn-uuid-001", data["transaction_id"])
-	assert.Equal(t, string(model.StatusOrderCreated), data["status"])
+	assert.Equal(t, "txn-uuid-001", data["payment_ref"])
+	assert.Equal(t, string(domain.StatusOrderCreated), data["status"])
 	assert.NotEmpty(t, data["payment_url"])
 }
 
@@ -238,12 +236,12 @@ func TestGetOrderByAWBHandler_Success(t *testing.T) {
 	h := handler.NewOrderHandler(mockSvc)
 	router := setupRouter(h)
 
-	expectedOrder := &model.Order{
+	expectedOrder := &domain.Order{
 		AWBNumber:    "JNE-abc12345",
-		Status:       model.StatusOrderCreated,
+		Status:       domain.StatusOrderCreated,
 		SenderName:   "Budi Santoso",
 		ReceiverName: "Ani Rahayu",
-		TotalPrice:   17000,
+		TotalCost:    17000,
 	}
 
 	mockSvc.EXPECT().
@@ -262,7 +260,7 @@ func TestGetOrderByAWBHandler_Success(t *testing.T) {
 
 	data := body["data"].(map[string]interface{})
 	assert.Equal(t, "JNE-abc12345", data["awb_number"])
-	assert.Equal(t, string(model.StatusOrderCreated), data["status"])
+	assert.Equal(t, string(domain.StatusOrderCreated), data["status"])
 }
 
 // TestGetOrderByAWBHandler_NotFound verifies that an unknown AWB returns 404.
@@ -301,14 +299,13 @@ func TestGetOrderByAWBHandler_ResponseStructure(t *testing.T) {
 
 	mockSvc.EXPECT().
 		GetOrderByAWB(gomock.Any(), gomock.Any()).
-		Return(&model.Order{
+		Return(&domain.Order{
 			AWBNumber:    "JNE-test1234",
-			Status:       model.StatusOrderCreated,
+			Status:       domain.StatusOrderCreated,
 			SenderName:   "Sender",
 			ReceiverName: "Receiver",
-			TotalPrice:   20000,
-			ServiceType:  model.ServiceRegular,
-			PaymentType:  model.PaymentNonCOD,
+			TotalCost:    20000,
+			PaymentType:  domain.PaymentTransfer,
 		}, nil)
 
 	w := httptest.NewRecorder()
@@ -328,6 +325,5 @@ func TestGetOrderByAWBHandler_ResponseStructure(t *testing.T) {
 	data := body["data"].(map[string]interface{})
 	assert.Contains(t, data, "awb_number")
 	assert.Contains(t, data, "status")
-	assert.Contains(t, data, "total_price")
-	assert.Contains(t, data, "service_type")
+	assert.Contains(t, data, "total_cost")
 }

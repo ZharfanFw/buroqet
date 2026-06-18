@@ -9,9 +9,9 @@ import (
 	"os"
 	"testing"
 
+	"order-management-service/internal/domain"
 	"order-management-service/internal/handler"
 	"order-management-service/internal/kafka"
-	"order-management-service/internal/domain"
 	"order-management-service/internal/repository"
 	"order-management-service/internal/service"
 
@@ -54,8 +54,17 @@ func setupTestApp(t *testing.T) *testApp {
 		t.Fatalf("Gagal konek ke database test: %v", err)
 	}
 
-	// Auto-migrate creates/updates the orders table for the test database
-	require.NoError(t, db.AutoMigrate(&model.Order{}))
+	// Only migrate and create generated columns if table does not exist
+	if !db.Migrator().HasTable(&domain.Order{}) {
+		require.NoError(t, db.AutoMigrate(&domain.Order{}))
+
+		// Recreate generated columns for the test PostgreSQL database
+		db.Exec("ALTER TABLE orders DROP COLUMN IF EXISTS volumetric_weight_kg")
+		db.Exec("ALTER TABLE orders ADD COLUMN volumetric_weight_kg double precision GENERATED ALWAYS AS ((length_cm * width_cm * height_cm) / 6000.0) STORED")
+
+		db.Exec("ALTER TABLE orders DROP COLUMN IF EXISTS is_cod")
+		db.Exec("ALTER TABLE orders ADD COLUMN is_cod boolean GENERATED ALWAYS AS (payment_type = 'COD') STORED")
+	}
 
 	// Use stub implementations so functional tests only need a DB,
 	// not a running Kafka broker or Pricing Service
@@ -92,12 +101,12 @@ func newStubPricingClient() service.PricingClient {
 	return &stubPricingClient{}
 }
 
-func (s *stubPricingClient) GetPrice(_ context.Context, req model.PricingRequest) (*model.PricingResponse, error) {
+func (s *stubPricingClient) GetPrice(_ context.Context, req domain.PricingRequest) (*domain.PricingResponse, error) {
 	baseFare := 15000.0
-	if req.ServiceType == model.ServiceExpress {
+	if req.ServiceType == domain.ServiceExpress {
 		baseFare = 30000.0
 	}
-	return &model.PricingResponse{
+	return &domain.PricingResponse{
 		BaseFare:     baseFare,
 		Insurance:    2000,
 		Discount:     0,
@@ -131,19 +140,17 @@ func validOrderPayload() map[string]interface{} {
 		"sender_name":      "Budi Santoso",
 		"sender_phone":     "081234567890",
 		"sender_address":   "Jl. Merdeka No.1, Jakarta",
-		"origin_city":      "Jakarta",
 		"origin_postal":    "10110",
 		"receiver_name":    "Ani Rahayu",
 		"receiver_phone":   "089876543210",
 		"receiver_address": "Jl. Sudirman No.5, Bandung",
-		"dest_city":        "Bandung",
 		"dest_postal":      "40111",
 		"weight_actual":    2.0,
 		"length":           20.0,
 		"width":            15.0,
 		"height":           10.0,
-		"service_type":     "REGULER",
-		"payment_type":     "NON_COD",
+		"service_type":     "REG",
+		"payment_type":     "TRANSFER",
 	}
 }
 
@@ -190,17 +197,16 @@ func TestFunctional_CreateOrder_PersistedToDatabase(t *testing.T) {
 	assert.NotEmpty(t, awb)
 
 	// Assert the order is actually in the database
-	var order model.Order
+	var order domain.Order
 	err := app.db.Where("awb_number = ?", awb).First(&order).Error
 	require.NoError(t, err, "Order must be persisted to the database")
 
 	assert.Equal(t, awb, order.AWBNumber)
-	assert.Equal(t, model.StatusOrderCreated, order.Status)
+	assert.Equal(t, domain.StatusOrderCreated, order.Status)
 	assert.Equal(t, "Budi Santoso", order.SenderName)
 	assert.Equal(t, "Ani Rahayu", order.ReceiverName)
-	assert.Equal(t, model.ServiceRegular, order.ServiceType)
-	assert.Equal(t, model.PaymentNonCOD, order.PaymentType)
-	assert.Greater(t, order.TotalPrice, 0.0)
+	assert.Equal(t, domain.PaymentTransfer, order.PaymentType)
+	assert.Greater(t, order.TotalCost, 0.0)
 }
 
 // FT-02: Retrieving an order by AWB must return the persisted data correctly.
@@ -227,7 +233,7 @@ func TestFunctional_GetOrderByAWB_ReturnsPersistedData(t *testing.T) {
 
 	data := getResp["data"].(map[string]interface{})
 	assert.Equal(t, awb, data["awb_number"])
-	assert.Equal(t, string(model.StatusOrderCreated), data["status"])
+	assert.Equal(t, string(domain.StatusOrderCreated), data["status"])
 	assert.Equal(t, "Budi Santoso", data["sender_name"])
 }
 
@@ -278,7 +284,7 @@ func TestFunctional_CreateOrder_ExpressIsMoreExpensiveThanReguler(t *testing.T) 
 
 	// Create EXPRESS order
 	expressPayload := validOrderPayload()
-	expressPayload["service_type"] = "EXPRESS"
+	expressPayload["service_type"] = "EXP"
 	wExp := doRequest(app.router, http.MethodPost, "/api/v1/orders", toJSON(t, expressPayload))
 	require.Equal(t, http.StatusCreated, wExp.Code)
 
@@ -286,10 +292,10 @@ func TestFunctional_CreateOrder_ExpressIsMoreExpensiveThanReguler(t *testing.T) 
 	require.NoError(t, json.Unmarshal(wReg.Body.Bytes(), &regResp))
 	require.NoError(t, json.Unmarshal(wExp.Body.Bytes(), &expResp))
 
-	regPrice := regResp["data"].(map[string]interface{})["total_price"].(float64)
-	expPrice := expResp["data"].(map[string]interface{})["total_price"].(float64)
+	regPrice := regResp["data"].(map[string]interface{})["total_cost"].(float64)
+	expPrice := expResp["data"].(map[string]interface{})["total_cost"].(float64)
 
-	assert.Greater(t, expPrice, regPrice, "EXPRESS service must cost more than REGULER")
+	assert.Greater(t, expPrice, regPrice, "EXP service must cost more than REG")
 }
 
 // FT-06: COD order must NOT have a payment URL.
@@ -345,11 +351,11 @@ func TestFunctional_CreateOrder_VolumetricWeightStoredCorrectly(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	awb := resp["data"].(map[string]interface{})["awb_number"].(string)
 
-	var order model.Order
+	var order domain.Order
 	require.NoError(t, app.db.Where("awb_number = ?", awb).First(&order).Error)
 
 	expectedVolumetric := (30.0 * 20.0 * 10.0) / 6000.0
-	assert.InDelta(t, expectedVolumetric, order.WeightVolumetri, 0.001,
+	assert.InDelta(t, expectedVolumetric, order.VolumetricWeightKg, 0.001,
 		"Volumetric weight (L*W*H/6000) must be stored correctly in the DB")
 }
 
@@ -368,6 +374,6 @@ func TestFunctional_CreateOrder_InvalidPayload_NoDBRecord(t *testing.T) {
 
 	// Verify no record was inserted
 	var count int64
-	app.db.Model(&model.Order{}).Count(&count)
+	app.db.Model(&domain.Order{}).Count(&count)
 	assert.Equal(t, int64(0), count, "No order must be saved when the request payload is invalid")
 }

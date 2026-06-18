@@ -4,15 +4,22 @@ metadata:
   name: buroqet-ingress
   namespace: buroqet
   annotations:
+    # Nginx Ingress Controller annotations
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # Azure: ukuran request yang diizinkan (untuk upload ePOD)
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # CORS dihandle di service level, bukan ingress
+    nginx.ingress.kubernetes.io/enable-cors: "false"
+    # Timeout untuk service yang lambat
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
 spec:
   ingressClassName: nginx
   rules:
-    - host: buroqet.local
-      http:
+    - http:
         paths:
-          # Frontend
-          - path: /()(.*)
+          # Frontend — tangkap semua yang tidak cocok dengan path API
+          - path: /()(.*) 
             pathType: ImplementationSpecific
             backend:
               service:
@@ -20,7 +27,7 @@ spec:
                 port:
                   number: 80
 
-          # Auth Service
+          # Auth Service — /api/auth/...
           - path: /api/auth(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
@@ -29,14 +36,14 @@ spec:
                 port:
                   number: 8080
 
-          # Tracking Service
+          # Tracking Service — /api/tracking/...
           - path: /api/tracking(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:
                 name: tracking-service
                 port:
-                  number: 8081
+                  number: 80
 
           # Order Management Service
           - path: /api/orders(/|$)(.*)
@@ -91,3 +98,13 @@ spec:
                 name: warehouse-service
                 port:
                   number: 8087
+
+# CATATAN JIKA TIDAK PUNYA DOMAIN:
+# Hapus bagian "host: buroqet.example.com" dan gunakan hanya path-based routing.
+# Akses menggunakan IP publik Load Balancer yang didapat setelah deploy:
+#   kubectl get svc -n ingress-nginx ingress-nginx-controller
+# Ingress tanpa host:
+#   spec:
+#     rules:
+#       - http:
+#           paths: [...]
