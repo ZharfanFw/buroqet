@@ -3,18 +3,25 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: warehouse-config
+  namespace: buroqet
+  labels:
+    app: warehouse-service
 data:
-  db_host: "postgres-service"         # Nama service PostgreSQL di Kubernetes
+  db_host: "GANTI.neon.tech"
   db_name: "wms_db"
-  kafka_broker: "kafka-service:9092"
+  kafka_broker: "GANTI_DENGAN_UPSTASH_KAFKA_BROKER"
   app_port: "8080"
 ---
-# Secret untuk data sensitif (disimpan base64 encoded)
+# Secret untuk data sensitif
 apiVersion: v1
 kind: Secret
 metadata:
   name: warehouse-secret
+  namespace: buroqet
+  labels:
+    app: warehouse-service
 type: Opaque
-data:
-  db_password: cGFzc3dvcmQxMjM=
-  db_user: d21zdXNlcg==
+# ⚠️ FILE INI JANGAN DI-COMMIT dengan nilai asli
+stringData:
+  db_password: "GANTI"
+  db_user: "GANTI"

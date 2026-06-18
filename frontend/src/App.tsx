@@ -20,8 +20,11 @@ import WarehousePage from './pages/warehouse/WarehousePage';
 
 // Guard: redirect to login if not authenticated
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  // const { isAuthenticated } = useAuthStore();
+  // return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  
+  // Bypassed for UI testing
+  return <>{children}</>;
 }
 
 function App() {
@@ -41,6 +44,11 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
         </Route>
 
+        {/* Public routes — accessible tanpa login */}
+        <Route element={<MainLayout />}>
+          <Route path="/tracking" element={<TrackingPage />} />
+        </Route>
+
         {/* Protected routes */}
         <Route
           element={
@@ -50,7 +58,6 @@ function App() {
           }
         >
           <Route path="/" element={<Navigate to="/tracking" replace />} />
-          <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/orders" element={<OrderPage />} />
           <Route path="/dispatch" element={<DispatchPage />} />
           <Route path="/pricing" element={<PricingPage />} />

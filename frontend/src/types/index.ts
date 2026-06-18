@@ -37,8 +37,26 @@ export interface TrackingEvent {
   awb: string;
   status: string;
   location: string;
+  hub_id: string;
   description: string;
+  latitude: number;
+  longitude: number;
   timestamp: string;
+  created_at: string;
+  source: string;
+}
+
+export interface TrackingStatus {
+  awb: string;
+  current_status: string;
+  last_location: string;
+  last_updated: string;
+}
+
+export interface TrackingHistory {
+  awb: string;
+  events: TrackingEvent[];
+  total: number;
 }
 
 export interface TrackingInfo {

@@ -22,7 +22,7 @@ func main() {
 	dbName := getEnv("DB_NAME", "settlement_db")
 	dbPort := getEnv("DB_PORT", "5432")
 	appPort := getEnv("APP_PORT", "8081")
-	pricingURL := getEnv("PRICING_SERVICE_URL", "http://localhost:8082")
+	pricingURL := getEnv("PRICING_SERVICE_URL", "http://pricing-service:8084")
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
