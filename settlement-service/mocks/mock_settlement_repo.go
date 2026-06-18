@@ -46,6 +46,21 @@ func (mr *MockSettlementRepositoryMockRecorder) CreateCommissionLog(ctx, log int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateCommissionLog", reflect.TypeOf((*MockSettlementRepository)(nil).CreateCommissionLog), ctx, log)
 }
 
+// GetCommissionByAWB mocks base method.
+func (m *MockSettlementRepository) GetCommissionByAWB(ctx context.Context, awb string) (*domain.CommissionLog, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCommissionByAWB", ctx, awb)
+	ret0, _ := ret[0].(*domain.CommissionLog)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCommissionByAWB indicates an expected call of GetCommissionByAWB.
+func (mr *MockSettlementRepositoryMockRecorder) GetCommissionByAWB(ctx, awb interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCommissionByAWB", reflect.TypeOf((*MockSettlementRepository)(nil).GetCommissionByAWB), ctx, awb)
+}
+
 // GetCommissionsByCourier mocks base method.
 func (m *MockSettlementRepository) GetCommissionsByCourier(ctx context.Context, courierID string) ([]domain.CommissionLog, error) {
 	m.ctrl.T.Helper()

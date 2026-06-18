@@ -40,7 +40,7 @@ func main() {
 		log.Fatalf("Gagal migrate database: %v", err)
 	}
 
-	// Inisialisasi semua layer
+	// Inisialisasi semua layer (Dependency Injection)
 	kafkaProducer := kafka.NewKafkaProducer(kafkaBroker)
 	repo := repository.NewWarehouseRepository(db)
 	svc := service.NewWarehouseService(repo, kafkaProducer)
@@ -53,7 +53,7 @@ func main() {
 	mux.HandleFunc("/api/v1/inbound", h.ProcessInbound)
 	mux.HandleFunc("/api/v1/dispatch", h.DispatchManifest)
 
-	log.Printf("Warehouse Service berjalan di port %s", appPort)
+	log.Printf("Warehouse Service berjalan di port %s (broker: %s)", appPort, kafkaBroker)
 	if err := http.ListenAndServe(":"+appPort, mux); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
@@ -65,4 +65,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-

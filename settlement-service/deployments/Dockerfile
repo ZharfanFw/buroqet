@@ -2,7 +2,6 @@ FROM golang:1.25.6-alpine AS builder
 RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 COPY go.mod go.sum ./
-ENV GOPROXY=direct
 
 # Baris di bawah ini sudah diperbaiki (dibersihkan dari loop yang rusak)
 RUN go mod download
