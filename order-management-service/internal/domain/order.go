@@ -128,6 +128,35 @@ type CreateOrderResponse struct {
 	PaymentURL    string      `json:"payment_url,omitempty"`
 }
 
+// ListOrdersRequest holds query params for paginated order listing.
+type ListOrdersRequest struct {
+	Status     string `form:"status"`      // optional filter by status
+	CustomerID string `form:"customer_id"` // optional filter by customer
+	Page       int    `form:"page"`        // 1-indexed, default 1
+	Limit      int    `form:"limit"`       // default 10, max 100
+}
+
+// ListOrdersResponse wraps the paginated result.
+type ListOrdersResponse struct {
+	Orders     []Order `json:"orders"`
+	Total      int64   `json:"total"`
+	Page       int     `json:"page"`
+	Limit      int     `json:"limit"`
+	TotalPages int     `json:"total_pages"`
+}
+
+// UpdateOrderStatusRequest is the body for PATCH /orders/:awb/status.
+type UpdateOrderStatusRequest struct {
+	Status OrderStatus `json:"status" binding:"required"`
+	Notes  string      `json:"notes"`
+}
+
+// CancelOrderResponse is returned after a successful order cancellation.
+type CancelOrderResponse struct {
+	AWBNumber string `json:"awb_number"`
+	Message   string `json:"message"`
+}
+
 // PricingRequest is sent to Pricing & Routing Service
 type PricingRequest struct {
 	OriginPostal string      `json:"origin_postal"`
