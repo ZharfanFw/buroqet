@@ -20,6 +20,8 @@ spec:
       labels:
         app: order-management-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: order-management-service
           # GANTI <your-github-username> dengan username GitHub org kalian

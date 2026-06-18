@@ -124,6 +124,11 @@ jobs:
         if: matrix.changed == 'true'
         uses: docker/setup-buildx-action@v3
 
+      - name: Compute lowercase owner
+        if: matrix.changed == 'true'
+        id: owner
+        run: echo "name=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Build & Push image
         if: matrix.changed == 'true'
         uses: docker/build-push-action@v5
@@ -132,8 +137,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner | lower }}/${{ matrix.service }}:latest
-            ${{ env.REGISTRY }}/${{ github.repository_owner | lower }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/${{ matrix.service }}:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -171,6 +176,15 @@ jobs:
 
       - name: Deploy Namespace
         run: kubectl apply -f infra/kubernetes/namespace.yaml
+
+      - name: Create GHCR Registry Secret
+        run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.repository_owner }} \
+            --docker-password=${{ secrets.GHCR_PAT }} \
+            --docker-email=github-actions@github.com \
+            --dry-run=client -o yaml | kubectl apply -n buroqet -f -
 
       - name: Deploy ConfigMaps
         run: |

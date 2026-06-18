@@ -20,6 +20,8 @@ spec:
       labels:
         app: frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: frontend
           # GANTI <your-github-username> dengan username GitHub org kalian

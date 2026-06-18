@@ -20,6 +20,8 @@ spec:
       labels:
         app: auth-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: auth-service
           # GANTI <your-github-username> dengan username GitHub org kalian

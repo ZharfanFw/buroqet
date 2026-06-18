@@ -22,6 +22,8 @@ spec:
       labels:
         app: tracking-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       # Pull dari ghcr.io (gratis, tidak perlu imagePullSecrets untuk public repo)
       # Jika repo private, tambahkan imagePullSecrets
       containers:
