@@ -195,19 +195,16 @@ jobs:
           find . -path "*/kubernetes/service.yaml" | xargs -I{} kubectl apply -f {} -n buroqet
 
       - name: Deploy Tracking Service
-        if: needs.detect-changes.outputs.tracking == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           kubectl apply -f tracking-service/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/tracking-service -n buroqet --timeout=120s
 
       - name: Deploy Auth Service
-        if: needs.detect-changes.outputs.auth == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           kubectl apply -f auth-service/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/auth-service-deployment -n buroqet --timeout=120s
 
       - name: Deploy Frontend
-        if: needs.detect-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           kubectl apply -f frontend/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/frontend -n buroqet --timeout=120s
@@ -225,3 +222,9 @@ jobs:
         run: |
           echo "=== Ingress Controller Service ==="
           kubectl get svc -n ingress-nginx ingress-nginx-controller || true
+          echo "=== Ingress Routing Rules ==="
+          kubectl get ingress -n buroqet
+          echo "=== Pods in buroqet Namespace ==="
+          kubectl get pods -n buroqet
+          echo "=== Endpoints in buroqet Namespace ==="
+          kubectl get endpoints -n buroqet
