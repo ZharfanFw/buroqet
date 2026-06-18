@@ -27,7 +27,7 @@ export default function TrackingPage() {
         setTimeout(() => {
           setData({
             awb: trimmed,
-            current_status: 'OUT_FOR_DELIVERY',
+            total: 4,
             events: [
               {
                 id: '1', awb: trimmed, status: 'INBOUND',
