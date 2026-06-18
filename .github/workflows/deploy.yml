@@ -8,6 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+  OWNER_LC: ${{ github.repository_owner }}
 
 jobs:
   # ─────────────────────────────────────────────────────────
@@ -131,8 +132,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:latest
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner | lower }}/${{ matrix.service }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner | lower }}/${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -164,8 +165,9 @@ jobs:
           # Ganti :latest dengan SHA commit yang spesifik agar rollback mudah
           SHA="${{ github.sha }}"
           OWNER="${{ github.repository_owner }}"
+          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
           find . -path "*/kubernetes/*.yaml" -not -path "*secret*" | xargs sed -i \
-            "s|ghcr.io/$OWNER/\(.*\):latest|ghcr.io/$OWNER/\1:$SHA|g"
+            "s|ghcr.io/$OWNER_LC/\(.*\):latest|ghcr.io/$OWNER_LC/\1:$SHA|g"
 
       - name: Deploy Namespace
         run: kubectl apply -f infra/kubernetes/namespace.yaml
