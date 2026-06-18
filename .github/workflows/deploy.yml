@@ -100,7 +100,7 @@ jobs:
             changed: ${{ needs.detect-changes.outputs.warehouse }}
           - service: frontend
             context: ./frontend
-            dockerfile: ./frontend/deployments/Dockerfile
+            dockerfile: ./frontend/Dockerfile
             changed: ${{ needs.detect-changes.outputs.frontend }}
 
     steps:
@@ -203,6 +203,11 @@ jobs:
         run: |
           kubectl apply -f auth-service/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/auth-service-deployment -n buroqet --timeout=120s
+
+      - name: Deploy Order Management Service
+        run: |
+          kubectl apply -f order-management-service/deployments/kubernetes/deployment.yaml -n buroqet
+          kubectl rollout status deployment/order-management-service -n buroqet --timeout=120s
 
       - name: Deploy Frontend
         run: |
