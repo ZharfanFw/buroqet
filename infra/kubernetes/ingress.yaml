@@ -16,10 +16,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    # GANTI buroqet.example.com dengan domain kalian
-    # Kalau belum punya domain, hapus host dan pakai IP langsung (lihat catatan di bawah)
-    - host: buroqet.example.com
-      http:
+    - http:
         paths:
           # Frontend — tangkap semua yang tidak cocok dengan path API
           - path: /()(.*) 
