@@ -57,18 +57,22 @@ pipeline {
         stage('Functional Test') {
             steps {
                 echo '=== Functional Test: Dispatch Fleet Service ==='
+                // FIX 1: Jalankan docker-compose dari folder deployments
                 bat "docker-compose -f ${SERVICE_DIR}/deployments/docker-compose.test.yml up -d"
+                // Tunggu DB ready (~15 detik)
                 bat 'C:\\Windows\\System32\\ping.exe -n 16 127.0.0.1'
-                bat 'set TEST_DATABASE_URL=host=localhost user=user password=pass dbname=database_ngasal_biar_gagal port=5433 sslmode=disable&&go test -v -tags=functional -count=1 ../tests/functional/...'
+                // FIX 2: dir() ke SERVICE_DIR agar Go bisa resolve module dispatch-fleet
+                // FIX 3: dbname=dispatch_db (bukan database_ngasal_biar_gagal)
+                dir("${SERVICE_DIR}") {
+                    bat 'set TEST_DATABASE_URL=host=localhost user=user password=pass dbname=dispatch_db port=5433 sslmode=disable&&go test -v -tags=functional -count=1 ./tests/functional/...'
+                }
             }
             post {
                 always {
-                    dir("${SERVICE_DIR}/deployments") {
-                        bat 'docker-compose -f docker-compose.test.yml down -v'
-                    }
+                    bat "docker-compose -f ${SERVICE_DIR}/deployments/docker-compose.test.yml down -v"
                 }
             }
-        } // Di sini stage Functional Test baru ditutup dengan benar
+        }
 
         stage('Push Image') {
             steps {
