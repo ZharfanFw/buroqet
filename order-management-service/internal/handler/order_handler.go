@@ -22,6 +22,8 @@ func NewOrderHandler(orderService service.OrderService) *OrderHandler {
 
 // RegisterRoutes mounts the OMS routes onto the given Gin engine.
 func (h *OrderHandler) RegisterRoutes(r *gin.Engine) {
+	r.Use(corsMiddleware())
+
 	// Health check untuk Kubernetes probe
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -247,4 +249,21 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 		"success": true,
 		"data":    resp,
 	})
+}
+
+// corsMiddleware adds CORS headers to Gin requests
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
 }
