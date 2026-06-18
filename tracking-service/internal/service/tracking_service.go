@@ -68,14 +68,17 @@ func (s *TrackingService) RecordEvent(ctx context.Context, req *domain.AddTracki
 	}
 
 	event := &domain.TrackingEvent{
-		ID:        uuid.New().String(),
-		AWB:       req.AWB,
-		Status:    req.Status,
-		Location:  req.Location,
-		HubID:     req.HubID,
-		Timestamp: eventTime,
-		CreatedAt: time.Now(),
-		Source:    req.Source,
+		ID:          uuid.New().String(),
+		AWB:         req.AWB,
+		Status:      req.Status,
+		Location:    req.Location,
+		HubID:       req.HubID,
+		Description: req.Description,
+		Latitude:    req.Latitude,
+		Longitude:   req.Longitude,
+		Timestamp:   eventTime,
+		CreatedAt:   time.Now(),
+		Source:      req.Source,
 	}
 
 	// --- 3. SIMPAN KE MONGODB (Primary Store) ---
@@ -190,12 +193,15 @@ func (s *TrackingService) ProcessKafkaEvent(ctx context.Context, payload []byte)
 	}
 
 	req := &domain.AddTrackingEventRequest{
-		AWB:       kafkaPayload.AWB,
-		Status:    kafkaPayload.Status,
-		HubID:     kafkaPayload.HubID,
-		Location:  kafkaPayload.Location,
-		Timestamp: kafkaPayload.Timestamp,
-		Source:    kafkaPayload.Source,
+		AWB:         kafkaPayload.AWB,
+		Status:      kafkaPayload.Status,
+		HubID:       kafkaPayload.HubID,
+		Location:    kafkaPayload.Location,
+		Description: kafkaPayload.Description,
+		Latitude:    kafkaPayload.Latitude,
+		Longitude:   kafkaPayload.Longitude,
+		Timestamp:   kafkaPayload.Timestamp,
+		Source:      kafkaPayload.Source,
 	}
 
 	_, err := s.RecordEvent(ctx, req)

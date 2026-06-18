@@ -23,11 +23,21 @@ func main() {
 	dbPort := os.Getenv("DB_PORT")
 
 	// Fallback nilai default jika variabel environment tidak ditemukan (untuk run lokal)
-	if dbHost == "" { dbHost = "localhost" }
-	if dbUser == "" { dbUser = "postgres" }
-	if dbPass == "" { dbPass = "password" }
-	if dbName == "" { dbName = "auth_db" }
-	if dbPort == "" { dbPort = "5432" }
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+	if dbPass == "" {
+		dbPass = "password"
+	}
+	if dbName == "" {
+		dbName = "auth_db"
+	}
+	if dbPort == "" {
+		dbPort = "5432"
+	}
 
 	// Susun DSN secara dinamis
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",

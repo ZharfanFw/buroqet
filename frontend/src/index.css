@@ -3,38 +3,39 @@
    ============================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
 
 :root {
   /* Brand Colors */
-  --primary: #6366f1;
-  --primary-dark: #4f46e5;
-  --primary-light: #818cf8;
-  --accent: #06b6d4;
+  --primary: #79AE6F;
+  --primary-dark: #64965a;
+  --primary-light: #9bc692;
+  --accent: #f0f7ef;
 
-  /* Neutrals (Dark theme) */
-  --bg-base: #0f0f13;
-  --bg-surface: #16161d;
-  --bg-card: #1e1e28;
-  --bg-hover: #252533;
-  --border: #2a2a3a;
+  /* Neutrals (Light theme, Clean White Bento) */
+  --bg-base: #f5f7f9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f0f5f1;
+  --border: #e2e8f0;
 
   /* Text */
-  --text-primary: #f1f1f5;
-  --text-secondary: #9898b0;
-  --text-muted: #5c5c78;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
 
-  /* Status */
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #3b82f6;
+  /* Status (Toned down to let primary green shine) */
+  --success: var(--primary);
+  --warning: #D1B77B; /* Muted yellow/sand */
+  --danger: #E26A6A;  /* Softer red */
+  --info: #8AA4A1;    /* Greyish-teal instead of bright blue */
 
-  /* Misc */
-  --radius: 10px;
-  --radius-sm: 6px;
-  --radius-lg: 16px;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-  --transition: 0.18s ease;
+  /* Bento Styling */
+  --radius: 20px;
+  --radius-sm: 12px;
+  --radius-lg: 24px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -80,7 +81,13 @@ input, textarea, select, button {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+}
+.card:hover {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
 }
 
 .btn {
@@ -130,10 +137,10 @@ input, textarea, select, button {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.badge-success { background: rgba(16,185,129,0.15); color: var(--success); }
-.badge-warning { background: rgba(245,158,11,0.15); color: var(--warning); }
-.badge-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
-.badge-info { background: rgba(59,130,246,0.15); color: var(--info); }
+.badge-success { background: rgba(121,174,111,0.15); color: var(--success); }
+.badge-warning { background: rgba(209,183,123,0.15); color: var(--warning); }
+.badge-danger { background: rgba(226,106,106,0.15); color: var(--danger); }
+.badge-info { background: rgba(138,164,161,0.15); color: var(--info); }
 .badge-default { background: var(--bg-hover); color: var(--text-secondary); }
 
 .table-wrapper { overflow-x: auto; }
