@@ -20,6 +20,8 @@ spec:
       labels:
         app: epod-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: epod-service
           # GANTI <your-github-username> dengan username GitHub org kalian

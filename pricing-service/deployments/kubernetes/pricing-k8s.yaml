@@ -20,6 +20,8 @@ spec:
       labels:
         app: pricing-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: pricing-service
           image: arpusauri/pricing-service:latest
