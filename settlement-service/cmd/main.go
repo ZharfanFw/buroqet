@@ -27,7 +27,7 @@ func main() {
 	dbName := getEnv("DB_NAME", "settlement_db")
 	dbPort := getEnv("DB_PORT", "5432")
 	appPort := getEnv("APP_PORT", "8081")
-	pricingURL := getEnv("PRICING_SERVICE_URL", "http://localhost:8084")
+	pricingURL := getEnv("PRICING_SERVICE_URL", "http://pricing-service:8084")
 	kafkaBroker := getEnv("KAFKA_BROKER", "localhost:9092")
 
 	dsn := fmt.Sprintf(

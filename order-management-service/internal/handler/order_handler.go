@@ -21,23 +21,23 @@ func NewOrderHandler(orderService service.OrderService) *OrderHandler {
 
 // RegisterRoutes mounts the OMS routes onto the given Gin engine.
 func (h *OrderHandler) RegisterRoutes(r *gin.Engine) {
-    // Health check untuk Kubernetes probe
-    r.GET("/health", func(c *gin.Context) {
-        c.JSON(http.StatusOK, gin.H{"status": "ok"})
-    })
+	// Health check untuk Kubernetes probe
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 
-    v1 := r.Group("/api/v1")
-    {
-        v1.POST("/orders", h.CreateOrder)
-        v1.GET("/orders/:awb", h.GetOrderByAWB)
-    }
+	v1 := r.Group("/api/v1")
+	{
+		v1.POST("/orders", h.CreateOrder)
+		v1.GET("/orders/:awb", h.GetOrderByAWB)
+	}
 }
 
 // CreateOrder godoc
 // POST /api/v1/orders
 // Accepts a CreateOrderRequest JSON body, creates the order, and returns a 201 with the order details.
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
-	var req model.CreateOrderRequest
+	var req domain.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,

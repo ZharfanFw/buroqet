@@ -6,7 +6,6 @@ import (
 
 	"order-management-service/internal/handler"
 	"order-management-service/internal/kafka"
-	"order-management-service/internal/domain"
 	"order-management-service/internal/repository"
 	"order-management-service/internal/service"
 
@@ -27,10 +26,8 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	// Auto-migrate will create/update the orders table based on the model struct
-	if err := db.AutoMigrate(&model.Order{}); err != nil {
-		log.Fatalf("failed to migrate database: %v", err)
-	}
+	// AutoMigrate removed because the Supabase team uses a central database schema
+	// Make sure the schema exists in Supabase directly!
 
 	// --- Kafka producer setup ---
 	kafkaBrokers := []string{os.Getenv("KAFKA_BROKER")}
@@ -56,7 +53,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8082"
 	}
 
 	log.Printf("OMS listening on :%s", port)

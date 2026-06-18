@@ -43,3 +43,10 @@ func (s *authService) Login(email, password string) (string, string, *domain.Use
 func (s *authService) ValidateToken(token string) (*domain.User, error) {
 	return &domain.User{}, nil 
 }
+
+func (s *authService) RefreshToken(token string) (string, string, error) {
+	if token == "" {
+		return "", "", errors.New("token tidak valid")
+	}
+	return "new-access-token-123", "new-refresh-token-456", nil
+}

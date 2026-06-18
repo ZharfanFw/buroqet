@@ -51,19 +51,24 @@ pipeline {
         stage('OMS - Functional Test') {
             steps {
                 dir('order-management-service') {
-                    // SENGAJA PAKAI STRIP BIAR MUNCUL ERROR: docker-compose: not found (exit code 127)
-                    sh 'docker-compose -f deployments/docker-compose.test.yml up -d'
+                    // Menjalankan container PostgreSQL langsung pakai docker run
+                    sh 'docker run -d --name oms-db-test -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=oms_test_db -p 5433:5432 postgres:15-alpine'
                     
-                    // Baris ini nggak akan sempat dieksekusi karena udah mati di atas
+                    // Tunggu database siap
                     sh 'sleep 15'
-                    sh 'TEST_DATABASE_URL="host=localhost user=postgres password=postgres dbname=oms_test_db port=5433 sslmode=disable" go test -v -count=1 ./tests/functional/...'
+                    
+                    // Dapatkan IP dari container database supaya Jenkins yang jalan di dalam docker juga bisa konek
+                    sh '''
+                        DB_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' oms-db-test)
+                        TEST_DATABASE_URL="host=$DB_IP user=postgres password=postgres dbname=oms_test_db port=5432 sslmode=disable" go test -v -count=1 ./tests/functional/...
+                    '''
                 }
             }
             post {
                 always {
                     dir('order-management-service') {
-                        // Pastikan ini juga pakai strip biar seragam dan log-nya mirip ss temenmu
-                        sh 'docker-compose -f deployments/docker-compose.test.yml down -v || true'
+                        // Bersihkan container setelah test selesai atau gagal
+                        sh 'docker rm -f oms-db-test || true'
                     }
                 }
             }

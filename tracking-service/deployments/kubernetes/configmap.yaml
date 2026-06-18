@@ -2,10 +2,15 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: tracking-config
+  namespace: buroqet
   labels:
     app: tracking-service
 data:
   mongo_db: "tracking_db"
-  redis_addr: "redis-service:6379"
-  kafka_broker: "kafka-service:9092"
+  # Redis: pakai Upstash (gratis) → format: <host>:<port>
+  # Contoh Upstash: charmed-lion-12345.upstash.io:6379
+  redis_addr: "GANTI_DENGAN_UPSTASH_REDIS_HOST:6379"
+  # Kafka: pakai Upstash Kafka (gratis) → format: <host>:<port>
+  # Contoh Upstash Kafka: charmed-lion-12345.upstash.io:9092
+  kafka_broker: "GANTI_DENGAN_UPSTASH_KAFKA_BROKER"
   app_port: "8080"

@@ -5,7 +5,7 @@
 # STAGE 1: BUILD STAGE
 # Menggunakan image Go yang besar untuk compile
 # ================================================
-FROM golang:1.25.6-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install dependency yang dibutuhkan untuk build
 RUN apk add --no-cache git ca-certificates

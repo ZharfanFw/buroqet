@@ -1,9 +1,11 @@
 version: '3.8'
 services:
-  oms-service:
-    build:
-      context: ..
-      dockerfile: deployments/Dockerfile
-    container_name: oms-service-test
+  postgres:
+    image: postgres:15-alpine
+    container_name: oms-db-test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: oms_test_db
     ports:
-      - "8081:8080"
+      - "5433:5432"

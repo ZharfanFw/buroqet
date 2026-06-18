@@ -740,8 +740,16 @@ GET  /ready             → Readiness probe
 
 ---
 
-### `package.delivere
+### `package.delivered`
+| Field | Value |
+|---|---|
+| **Topic** | `package.delivered` |
+| **Producer** | ePOD Service |
+| **Consumer** | Tracking Service, Settlement Service |
+| **Trigger** | Upload foto bukti terima berhasil |
+| **Key** | AWB |
 
+**Payload:** AWB string (current implementation: hanya kirim AWB sebagai string message)
 
 ---
 
