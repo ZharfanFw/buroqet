@@ -31,7 +31,7 @@ func validCreateOrderRequest() domain.CreateOrderRequest {
 		Width:           15,
 		Height:          10,
 		ServiceType:     domain.ServiceRegular,
-		PaymentType:     domain.PaymentNonCOD,
+		PaymentType:     domain.PaymentTransfer,
 	}
 }
 

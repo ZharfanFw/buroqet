@@ -9,26 +9,35 @@ import (
 type OrderStatus string
 
 const (
-	StatusOrderCreated   OrderStatus = "ORDER_CREATED"
-	StatusPaymentPending OrderStatus = "PAYMENT_PENDING"
-	StatusPaymentPaid    OrderStatus = "PAYMENT_PAID"
-	StatusCancelled      OrderStatus = "CANCELLED"
+	StatusOrderCreated        OrderStatus = "ORDER_CREATED"
+	StatusPaymentPending      OrderStatus = "PAYMENT_PENDING"
+	StatusPaymentConfirmed    OrderStatus = "PAYMENT_CONFIRMED"
+	StatusPickedUp            OrderStatus = "PICKED_UP"
+	StatusOnTransit           OrderStatus = "ON_TRANSIT"
+	StatusAtDestinationHub    OrderStatus = "AT_DESTINATION_HUB"
+	StatusOutForDelivery      OrderStatus = "OUT_FOR_DELIVERY"
+	StatusDelivered           OrderStatus = "DELIVERED"
+	StatusFailed              OrderStatus = "FAILED"
+	StatusReturned            OrderStatus = "RETURNED"
 )
 
 // ServiceType represents the shipping service type
 type ServiceType string
 
 const (
-	ServiceRegular ServiceType = "REGULER"
-	ServiceExpress ServiceType = "EXPRESS"
+	ServiceRegular ServiceType = "REG"
+	ServiceExpress ServiceType = "EXP"
+	ServiceCargo   ServiceType = "CARGO"
 )
 
 // PaymentType represents how the order is paid
 type PaymentType string
 
 const (
-	PaymentCOD    PaymentType = "COD"
-	PaymentNonCOD PaymentType = "NON_COD"
+	PaymentCOD     PaymentType = "COD"
+	PaymentTransfer PaymentType = "TRANSFER"
+	PaymentEwallet  PaymentType = "EWALLET"
+	PaymentVA       PaymentType = "VA"
 )
 
 // Order is the main entity stored in PostgreSQL (Supabase)
@@ -53,7 +62,7 @@ type Order struct {
 	LengthCm             float64     `gorm:"column:length_cm" json:"length_cm"`
 	WidthCm              float64     `gorm:"column:width_cm" json:"width_cm"`
 	HeightCm             float64     `gorm:"column:height_cm" json:"height_cm"`
-	VolumetricWeightKg   float64     `gorm:"column:volumetric_weight_kg" json:"volumetric_weight_kg"`
+	VolumetricWeightKg   float64     `gorm:"column:volumetric_weight_kg;->;-<-" json:"volumetric_weight_kg"` // GENERATED ALWAYS: (length_cm * width_cm * height_cm) / 5000
 	PricingMethod        string      `gorm:"column:pricing_method" json:"pricing_method"`
 	BaseTariff           float64     `gorm:"column:base_tariff" json:"base_tariff"`
 	InsuranceFee         float64     `gorm:"column:insurance_fee" json:"insurance_fee"`
@@ -61,11 +70,13 @@ type Order struct {
 	TotalCost            float64     `gorm:"column:total_cost" json:"total_cost"`
 	UseInsurance         bool        `gorm:"column:use_insurance" json:"use_insurance"`
 	PaymentType          PaymentType `gorm:"column:payment_type" json:"payment_type"`
-	IsCod                bool        `gorm:"column:is_cod" json:"is_cod"`
+	IsCod                bool        `gorm:"column:is_cod;->;-<-" json:"is_cod"` // GENERATED ALWAYS: (payment_type = 'COD')
 	RouteID              *uuid.UUID  `gorm:"type:uuid;column:route_id" json:"route_id"`
 	PaymentRef           string      `gorm:"column:payment_ref" json:"payment_ref"`
 	Status               OrderStatus `gorm:"column:status" json:"status"`
 	Notes                string      `gorm:"column:notes" json:"notes"`
+	OriginCity           string      `gorm:"column:origin_city" json:"origin_city"`
+	DestCity             string      `gorm:"column:dest_city" json:"dest_city"`
 	CreatedAt            time.Time   `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt            time.Time   `gorm:"column:updated_at" json:"updated_at"`
 }
@@ -81,7 +92,8 @@ type CreateOrderRequest struct {
 	SenderName    string `json:"sender_name" binding:"required"`
 	SenderPhone   string `json:"sender_phone" binding:"required"`
 	SenderAddress string `json:"sender_address" binding:"required"`
-	OriginPostal  string `json:"origin_postal" binding:"required"`
+	OriginPostal  string  `json:"origin_postal" binding:"required"`
+	OriginCity    string  `json:"origin_city"`
 	OriginLat     float64 `json:"origin_lat"`
 	OriginLng     float64 `json:"origin_lng"`
 
@@ -89,7 +101,8 @@ type CreateOrderRequest struct {
 	ReceiverName    string `json:"receiver_name" binding:"required"`
 	ReceiverPhone   string `json:"receiver_phone" binding:"required"`
 	ReceiverAddress string `json:"receiver_address" binding:"required"`
-	DestPostal      string `json:"dest_postal" binding:"required"`
+	DestPostal      string  `json:"dest_postal" binding:"required"`
+	DestCity        string  `json:"dest_city"`
 	DestLat         float64 `json:"dest_lat"`
 	DestLng         float64 `json:"dest_lng"`
 
@@ -100,8 +113,8 @@ type CreateOrderRequest struct {
 	Height       float64 `json:"height" binding:"required,gt=0"`
 
 	// Service
-	ServiceType ServiceType `json:"service_type" binding:"required,oneof=REGULER EXPRESS"`
-	PaymentType PaymentType `json:"payment_type" binding:"required,oneof=COD NON_COD"`
+	ServiceType ServiceType `json:"service_type" binding:"required,oneof=REG EXP CARGO"`
+	PaymentType PaymentType `json:"payment_type" binding:"required,oneof=COD TRANSFER EWALLET VA"`
 	UseInsurance bool       `json:"use_insurance"`
 }
 

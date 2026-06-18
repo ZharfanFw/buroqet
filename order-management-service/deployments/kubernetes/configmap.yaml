@@ -6,4 +6,5 @@ metadata:
 data:
   DATABASE_URL: "postgresql://postgres:HfuyrF1xd1iUVagY@db.gvmknmaybejslbghzsov.supabase.co:5432/postgres?sslmode=require"
   KAFKA_BROKER: "oms-kafka:9092"
-  PORT: "8080"
+  PORT: "8082"
+  PRICING_SERVICE_URL: "http://pricing-service:8084"

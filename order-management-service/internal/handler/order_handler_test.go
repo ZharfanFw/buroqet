@@ -42,8 +42,8 @@ func validRequestBody() map[string]interface{} {
 		"length":           20.0,
 		"width":            15.0,
 		"height":           10.0,
-		"service_type":     "REGULER",
-		"payment_type":     "NON_COD",
+		"service_type":     "REG",
+		"payment_type":     "TRANSFER",
 	}
 }
 
@@ -305,7 +305,7 @@ func TestGetOrderByAWBHandler_ResponseStructure(t *testing.T) {
 			SenderName:   "Sender",
 			ReceiverName: "Receiver",
 			TotalCost:    20000,
-			PaymentType:  domain.PaymentNonCOD,
+			PaymentType:  domain.PaymentTransfer,
 		}, nil)
 
 	w := httptest.NewRecorder()

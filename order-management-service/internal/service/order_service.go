@@ -83,7 +83,7 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 
 	// --- Step 4: Determine payment URL (only for NON-COD orders) ---
 	paymentURL := ""
-	if req.PaymentType == domain.PaymentNonCOD {
+	if req.PaymentType != domain.PaymentCOD {
 		// In a real system this would call Payment Gateway (Midtrans/Xendit).
 		// Here we construct a placeholder URL; the actual integration is out of scope for OMS.
 		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", paymentRef)
@@ -136,6 +136,8 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 		PaymentRef:         paymentRef,
 		Status:             domain.StatusOrderCreated,
 		Notes:              "",
+		OriginCity:         req.OriginCity,
+		DestCity:           req.DestCity,
 		CreatedAt:          time.Now(),
 		UpdatedAt:          time.Now(),
 	}
@@ -154,16 +156,16 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 		TransactionID: paymentRef,
 		SenderName:    req.SenderName,
 		SenderAddress: req.SenderAddress,
-		OriginCity:    "", // deprecated in Supabase
+		OriginCity:    req.OriginCity,
 		ReceiverName:  req.ReceiverName,
-		DestCity:      "", // deprecated in Supabase
+		DestCity:      req.DestCity,
 		ServiceType:   string(req.ServiceType),
 		TotalPrice:    pricingResp.TotalPrice,
 		CreatedAt:     time.Now(),
 	}
 
 	if err := s.kafkaProducer.PublishOrderCreated(ctx, event); err != nil {
-		fmt.Printf("[WARN] failed to publish OrderCreated event for AWB %s: %v\n", awbNumber, err)
+		fmt.Printf("[KAFKA] WARNING topic=order.created key=%s err=%v\n", awbNumber, err)
 	}
 
 	return &domain.CreateOrderResponse{
@@ -185,9 +187,22 @@ func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*do
 	return order, nil
 }
 
-// generateAWB creates a unique AWB in the format "JNE-<8-char-UUID-prefix>".
-// A real implementation would use a more structured format (e.g. branch code + date + sequence).
+// generateAWB creates a unique AWB in the format "BQ-YYYY-XXX-NNN" sesuai spesifikasi Buroqet.
+// Contoh: BQ-2026-XKT-042
 func generateAWB() string {
-	id := uuid.New().String()
-	return fmt.Sprintf("JNE-%s", id[:8])
+	id := uuid.New()
+	b := id[:]
+
+	// 3 huruf kapital acak dari UUID bytes
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	code := string([]byte{
+		letters[b[0]%26],
+		letters[b[1]%26],
+		letters[b[2]%26],
+	})
+
+	// 3 digit angka (100-999) dari UUID bytes
+	num := int(b[3])%900 + 100
+
+	return fmt.Sprintf("BQ-%d-%s-%03d", time.Now().Year(), code, num)
 }

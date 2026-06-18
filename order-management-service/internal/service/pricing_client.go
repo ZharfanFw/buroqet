@@ -35,7 +35,7 @@ func (c *httpPricingClient) GetPrice(ctx context.Context, req domain.PricingRequ
 		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/pricing", bytes.NewBuffer(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/pricing/calculate", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}

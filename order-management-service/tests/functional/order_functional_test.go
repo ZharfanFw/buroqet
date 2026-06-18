@@ -54,8 +54,17 @@ func setupTestApp(t *testing.T) *testApp {
 		t.Fatalf("Gagal konek ke database test: %v", err)
 	}
 
-	// Auto-migrate creates/updates the orders table for the test database
-	require.NoError(t, db.AutoMigrate(&domain.Order{}))
+	// Only migrate and create generated columns if table does not exist
+	if !db.Migrator().HasTable(&domain.Order{}) {
+		require.NoError(t, db.AutoMigrate(&domain.Order{}))
+
+		// Recreate generated columns for the test PostgreSQL database
+		db.Exec("ALTER TABLE orders DROP COLUMN IF EXISTS volumetric_weight_kg")
+		db.Exec("ALTER TABLE orders ADD COLUMN volumetric_weight_kg double precision GENERATED ALWAYS AS ((length_cm * width_cm * height_cm) / 6000.0) STORED")
+
+		db.Exec("ALTER TABLE orders DROP COLUMN IF EXISTS is_cod")
+		db.Exec("ALTER TABLE orders ADD COLUMN is_cod boolean GENERATED ALWAYS AS (payment_type = 'COD') STORED")
+	}
 
 	// Use stub implementations so functional tests only need a DB,
 	// not a running Kafka broker or Pricing Service
@@ -140,8 +149,8 @@ func validOrderPayload() map[string]interface{} {
 		"length":           20.0,
 		"width":            15.0,
 		"height":           10.0,
-		"service_type":     "REGULER",
-		"payment_type":     "NON_COD",
+		"service_type":     "REG",
+		"payment_type":     "TRANSFER",
 	}
 }
 
@@ -196,7 +205,7 @@ func TestFunctional_CreateOrder_PersistedToDatabase(t *testing.T) {
 	assert.Equal(t, domain.StatusOrderCreated, order.Status)
 	assert.Equal(t, "Budi Santoso", order.SenderName)
 	assert.Equal(t, "Ani Rahayu", order.ReceiverName)
-	assert.Equal(t, domain.PaymentNonCOD, order.PaymentType)
+	assert.Equal(t, domain.PaymentTransfer, order.PaymentType)
 	assert.Greater(t, order.TotalCost, 0.0)
 }
 
@@ -275,7 +284,7 @@ func TestFunctional_CreateOrder_ExpressIsMoreExpensiveThanReguler(t *testing.T) 
 
 	// Create EXPRESS order
 	expressPayload := validOrderPayload()
-	expressPayload["service_type"] = "EXPRESS"
+	expressPayload["service_type"] = "EXP"
 	wExp := doRequest(app.router, http.MethodPost, "/api/v1/orders", toJSON(t, expressPayload))
 	require.Equal(t, http.StatusCreated, wExp.Code)
 
@@ -286,7 +295,7 @@ func TestFunctional_CreateOrder_ExpressIsMoreExpensiveThanReguler(t *testing.T) 
 	regPrice := regResp["data"].(map[string]interface{})["total_cost"].(float64)
 	expPrice := expResp["data"].(map[string]interface{})["total_cost"].(float64)
 
-	assert.Greater(t, expPrice, regPrice, "EXPRESS service must cost more than REGULER")
+	assert.Greater(t, expPrice, regPrice, "EXP service must cost more than REG")
 }
 
 // FT-06: COD order must NOT have a payment URL.
