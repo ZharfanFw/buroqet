@@ -3,6 +3,8 @@ package kafka
 import (
 	"context"
 	"log"
+
+	kafkalib "github.com/segmentio/kafka-go"
 )
 
 type kafkaProducer struct {
@@ -14,8 +16,25 @@ func NewKafkaProducer(broker string) *kafkaProducer {
 }
 
 func (k *kafkaProducer) PublishEvent(ctx context.Context, topic string, key string, value []byte) error {
-	// Untuk keperluan tugas, kita log saja dulu
-	// Di production, ini akan benar-benar kirim ke Kafka
-	log.Printf("[KAFKA] topic=%s key=%s value=%s", topic, key, string(value))
+	w := &kafkalib.Writer{
+		Addr:     kafkalib.TCP(k.broker),
+		Topic:    topic,
+		Balancer: &kafkalib.LeastBytes{},
+	}
+	defer w.Close()
+
+	err := w.WriteMessages(ctx,
+		kafkalib.Message{
+			Key:   []byte(key),
+			Value: value,
+		},
+	)
+
+	if err != nil {
+		log.Printf("[KAFKA ERROR] Failed to publish topic=%s key=%s err=%v", topic, key, err)
+		return err
+	}
+
+	log.Printf("[KAFKA] PUBLISHED topic=%s key=%s value=%s", topic, key, string(value))
 	return nil
 }

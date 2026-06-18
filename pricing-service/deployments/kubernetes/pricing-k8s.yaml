@@ -2,11 +2,19 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pricing-service
+  namespace: buroqet
+  labels:
+    app: pricing-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: pricing-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:

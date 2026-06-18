@@ -1,0 +1,203 @@
+/* =============================================
+   TrackingPage.css
+   ============================================= */
+
+.tracking-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+/* ── Search Card ── */
+.tracking-search-card {
+  margin-bottom: 20px;
+}
+
+.tracking-search-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  transition: var(--transition);
+}
+
+.search-input-wrap:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(121, 174, 111, 0.15); /* Soft Green Focus */
+}
+
+.search-icon { font-size: 16px; opacity: 0.6; flex-shrink: 0; }
+
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 12px 0;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.search-input::placeholder { color: var(--text-muted); }
+
+.search-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+.search-clear:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.search-btn {
+  padding: 12px 24px;
+  white-space: nowrap;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Quick examples */
+.quick-examples {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.quick-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.quick-chip {
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: monospace;
+}
+
+.quick-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  background: rgba(121, 174, 111, 0.1);
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error ── */
+.tracking-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border-left: 3px solid var(--danger);
+  background: rgba(226, 106, 106, 0.06);
+  margin-bottom: 20px;
+}
+.error-icon { font-size: 22px; flex-shrink: 0; }
+.tracking-error strong { display: block; margin-bottom: 4px; }
+.tracking-error p { color: var(--text-secondary); font-size: 13px; }
+
+/* ── Skeleton ── */
+.tracking-skeleton { margin-bottom: 20px; }
+
+.skeleton-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.skeleton-block {
+  height: 12px;
+  background: var(--bg-hover);
+  border-radius: 6px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.skeleton-block.w-40 { width: 160px; }
+.skeleton-block.w-24 { width: 96px; }
+.skeleton-block.w-60 { width: 240px; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.skeleton-timeline { display: flex; flex-direction: column; gap: 20px; }
+
+.skeleton-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.skeleton-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  flex-shrink: 0;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+/* ── Empty State ── */
+.tracking-empty {
+  text-align: center;
+  padding: 48px 20px;
+}
+
+.tracking-illustration {
+  width: 200px;
+  margin: 0 auto 20px;
+}
+
+.tracking-illustration svg { width: 100%; height: auto; }
+
+.tracking-empty h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.tracking-empty p {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  max-width: 320px;
+  margin: 0 auto;
+}

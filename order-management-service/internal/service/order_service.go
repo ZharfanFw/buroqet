@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"order-management-service/internal/kafka"
 	"order-management-service/internal/domain"
+	"order-management-service/internal/kafka"
 	"order-management-service/internal/repository"
 
 	"github.com/google/uuid"
@@ -17,13 +17,13 @@ import (
 // PricingClient defines the contract for calling the external Pricing & Routing Service.
 // Using an interface keeps the service unit-testable without a real HTTP call.
 type PricingClient interface {
-	GetPrice(ctx context.Context, req model.PricingRequest) (*model.PricingResponse, error)
+	GetPrice(ctx context.Context, req domain.PricingRequest) (*domain.PricingResponse, error)
 }
 
 // OrderService defines the public business operations for the OMS.
 type OrderService interface {
-	CreateOrder(ctx context.Context, req model.CreateOrderRequest) (*model.CreateOrderResponse, error)
-	GetOrderByAWB(ctx context.Context, awbNumber string) (*model.Order, error)
+	CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.CreateOrderResponse, error)
+	GetOrderByAWB(ctx context.Context, awbNumber string) (*domain.Order, error)
 }
 
 // orderService is the concrete implementation.
@@ -53,12 +53,20 @@ func NewOrderService(
 //  4. Persist the order to PostgreSQL.
 //  5. Publish OrderCreated event to Kafka for Dispatch Service.
 //  6. Return the response DTO to the handler.
-func (s *orderService) CreateOrder(ctx context.Context, req model.CreateOrderRequest) (*model.CreateOrderResponse, error) {
-	// --- Step 1: Get pricing from Pricing & Routing Service ---
-	pricingResp, err := s.pricingClient.GetPrice(ctx, model.PricingRequest{
+func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.CreateOrderResponse, error) {
+	// --- Step 1: Calculate volumetric & chargeable weight ---
+	// Industry standard: L x W x H / 6000
+	volumetricWeight := (req.Length * req.Width * req.Height) / 6000
+	chargeableWeight := req.WeightActual
+	if volumetricWeight > req.WeightActual {
+		chargeableWeight = volumetricWeight
+	}
+
+	// --- Step 2: Get pricing from Pricing & Routing Service ---
+	pricingResp, err := s.pricingClient.GetPrice(ctx, domain.PricingRequest{
 		OriginPostal: req.OriginPostal,
 		DestPostal:   req.DestPostal,
-		Weight:       req.WeightActual,
+		Weight:       chargeableWeight,
 		Length:       req.Length,
 		Width:        req.Width,
 		Height:       req.Height,
@@ -68,45 +76,74 @@ func (s *orderService) CreateOrder(ctx context.Context, req model.CreateOrderReq
 		return nil, fmt.Errorf("failed to get pricing: %w", err)
 	}
 
-	// --- Step 2: Calculate volumetric weight (L x W x H / 6000 is the industry standard) ---
-	volumetricWeight := (req.Length * req.Width * req.Height) / 6000
-
 	// --- Step 3: Generate unique identifiers ---
+	orderID := uuid.New()
 	awbNumber := generateAWB()
-	transactionID := uuid.New().String()
+	paymentRef := uuid.New().String()
 
 	// --- Step 4: Determine payment URL (only for NON-COD orders) ---
 	paymentURL := ""
-	if req.PaymentType == model.PaymentNonCOD {
+	if req.PaymentType != domain.PaymentCOD {
 		// In a real system this would call Payment Gateway (Midtrans/Xendit).
 		// Here we construct a placeholder URL; the actual integration is out of scope for OMS.
-		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", transactionID)
+		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", paymentRef)
+	}
+
+	var custID, svcID *uuid.UUID
+	if req.CustomerID != "" {
+		if parsed, err := uuid.Parse(req.CustomerID); err == nil {
+			custID = &parsed
+		}
+	}
+	if req.ServiceID != "" {
+		if parsed, err := uuid.Parse(req.ServiceID); err == nil {
+			svcID = &parsed
+		}
 	}
 
 	// --- Step 5: Build the Order entity and persist it ---
-	order := &model.Order{
-		AWBNumber:       awbNumber,
-		TransactionID:   transactionID,
-		Status:          model.StatusOrderCreated,
-		SenderName:      req.SenderName,
-		SenderPhone:     req.SenderPhone,
-		SenderAddress:   req.SenderAddress,
-		OriginCity:      req.OriginCity,
-		OriginPostal:    req.OriginPostal,
-		ReceiverName:    req.ReceiverName,
-		ReceiverPhone:   req.ReceiverPhone,
-		ReceiverAddress: req.ReceiverAddress,
-		DestCity:        req.DestCity,
-		DestPostal:      req.DestPostal,
-		WeightActual:    req.WeightActual,
-		WeightVolumetri: volumetricWeight,
-		Length:          req.Length,
-		Width:           req.Width,
-		Height:          req.Height,
-		ServiceType:     req.ServiceType,
-		PaymentType:     req.PaymentType,
-		TotalPrice:      pricingResp.TotalPrice,
-		PaymentURL:      paymentURL,
+	order := &domain.Order{
+		OrderID:            orderID,
+		AWBNumber:          awbNumber,
+		CustomerID:         custID,
+		ServiceID:          svcID,
+		SenderName:         req.SenderName,
+		SenderPhone:        req.SenderPhone,
+		SenderAddress:      req.SenderAddress,
+		OriginPostalCode:   req.OriginPostal,
+		OriginLat:          req.OriginLat,
+		OriginLng:          req.OriginLng,
+		ReceiverName:       req.ReceiverName,
+		ReceiverPhone:      req.ReceiverPhone,
+		ReceiverAddress:    req.ReceiverAddress,
+		DestPostalCode:     req.DestPostal,
+		DestLat:            req.DestLat,
+		DestLng:            req.DestLng,
+		ActualWeightKg:     req.WeightActual,
+		LengthCm:           req.Length,
+		WidthCm:            req.Width,
+		HeightCm:           req.Height,
+		VolumetricWeightKg: volumetricWeight,
+		PricingMethod:      "VOLUMETRIC",
+		BaseTariff:         pricingResp.BaseFare,
+		InsuranceFee:       pricingResp.Insurance,
+		Discount:           pricingResp.Discount,
+		TotalCost:          pricingResp.TotalPrice,
+		UseInsurance:       req.UseInsurance,
+		PaymentType:        req.PaymentType,
+		IsCod:              req.PaymentType == domain.PaymentCOD,
+		RouteID:            nil,
+		PaymentRef:         paymentRef,
+		Status:             domain.StatusOrderCreated,
+		Notes:              "",
+		OriginCity:         req.OriginCity,
+		DestCity:           req.DestCity,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if chargeableWeight == req.WeightActual {
+		order.PricingMethod = "ACTUAL"
 	}
 
 	if err := s.repo.Create(ctx, order); err != nil {
@@ -116,7 +153,7 @@ func (s *orderService) CreateOrder(ctx context.Context, req model.CreateOrderReq
 	// --- Step 6: Publish OrderCreated event to Kafka ---
 	event := kafka.OrderCreatedEvent{
 		AWBNumber:     awbNumber,
-		TransactionID: transactionID,
+		TransactionID: paymentRef,
 		SenderName:    req.SenderName,
 		SenderAddress: req.SenderAddress,
 		OriginCity:    req.OriginCity,
@@ -128,22 +165,21 @@ func (s *orderService) CreateOrder(ctx context.Context, req model.CreateOrderReq
 	}
 
 	if err := s.kafkaProducer.PublishOrderCreated(ctx, event); err != nil {
-		// Non-fatal: order is already persisted. Log and continue.
-		// In production you'd push to a dead-letter queue or an outbox table.
-		fmt.Printf("[WARN] failed to publish OrderCreated event for AWB %s: %v\n", awbNumber, err)
+		fmt.Printf("[KAFKA] WARNING topic=order.created key=%s err=%v\n", awbNumber, err)
 	}
 
-	return &model.CreateOrderResponse{
+	return &domain.CreateOrderResponse{
+		OrderID:       orderID.String(),
 		AWBNumber:     awbNumber,
-		TransactionID: transactionID,
-		Status:        model.StatusOrderCreated,
-		TotalPrice:    pricingResp.TotalPrice,
+		PaymentRef:    paymentRef,
+		Status:        domain.StatusOrderCreated,
+		TotalCost:     pricingResp.TotalPrice,
 		PaymentURL:    paymentURL,
 	}, nil
 }
 
 // GetOrderByAWB fetches order details by AWB number.
-func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*model.Order, error) {
+func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*domain.Order, error) {
 	order, err := s.repo.FindByAWB(ctx, awbNumber)
 	if err != nil {
 		return nil, fmt.Errorf("order not found: %w", err)
@@ -151,9 +187,22 @@ func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*mo
 	return order, nil
 }
 
-// generateAWB creates a unique AWB in the format "JNE-<8-char-UUID-prefix>".
-// A real implementation would use a more structured format (e.g. branch code + date + sequence).
+// generateAWB creates a unique AWB in the format "BQ-YYYY-XXX-NNN" sesuai spesifikasi Buroqet.
+// Contoh: BQ-2026-XKT-042
 func generateAWB() string {
-	id := uuid.New().String()
-	return fmt.Sprintf("JNE-%s", id[:8])
+	id := uuid.New()
+	b := id[:]
+
+	// 3 huruf kapital acak dari UUID bytes
+	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	code := string([]byte{
+		letters[b[0]%26],
+		letters[b[1]%26],
+		letters[b[2]%26],
+	})
+
+	// 3 digit angka (100-999) dari UUID bytes
+	num := int(b[3])%900 + 100
+
+	return fmt.Sprintf("BQ-%d-%s-%03d", time.Now().Year(), code, num)
 }

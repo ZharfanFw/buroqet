@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"order-management-service/internal/kafka"
 	"order-management-service/internal/domain"
+	"order-management-service/internal/kafka"
 	"order-management-service/internal/service"
 	"order-management-service/mocks"
 
@@ -16,30 +16,28 @@ import (
 )
 
 // helper: returns a valid CreateOrderRequest to avoid repetition in every test
-func validCreateOrderRequest() model.CreateOrderRequest {
-	return model.CreateOrderRequest{
+func validCreateOrderRequest() domain.CreateOrderRequest {
+	return domain.CreateOrderRequest{
 		SenderName:      "Budi Santoso",
 		SenderPhone:     "081234567890",
 		SenderAddress:   "Jl. Merdeka No.1, Jakarta",
-		OriginCity:      "Jakarta",
 		OriginPostal:    "10110",
 		ReceiverName:    "Ani Rahayu",
 		ReceiverPhone:   "089876543210",
 		ReceiverAddress: "Jl. Sudirman No.5, Bandung",
-		DestCity:        "Bandung",
 		DestPostal:      "40111",
 		WeightActual:    2.0,
 		Length:          20,
 		Width:           15,
 		Height:          10,
-		ServiceType:     model.ServiceRegular,
-		PaymentType:     model.PaymentNonCOD,
+		ServiceType:     domain.ServiceRegular,
+		PaymentType:     domain.PaymentTransfer,
 	}
 }
 
 // helper: returns a canned pricing response from the mock pricing client
-func validPricingResponse() *model.PricingResponse {
-	return &model.PricingResponse{
+func validPricingResponse() *domain.PricingResponse {
+	return &domain.PricingResponse{
 		BaseFare:     15000,
 		Insurance:    2000,
 		Discount:     0,
@@ -86,9 +84,9 @@ func TestCreateOrder_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.AWBNumber, "AWB number should be generated")
-	assert.NotEmpty(t, resp.TransactionID, "Transaction ID should be generated")
-	assert.Equal(t, model.StatusOrderCreated, resp.Status)
-	assert.Equal(t, 17000.0, resp.TotalPrice)
+	assert.NotEmpty(t, resp.PaymentRef, "Payment Ref should be generated")
+	assert.Equal(t, domain.StatusOrderCreated, resp.Status)
+	assert.Equal(t, 17000.0, resp.TotalCost)
 	assert.NotEmpty(t, resp.PaymentURL, "Non-COD order must have a payment URL")
 }
 
@@ -104,7 +102,7 @@ func TestCreateOrder_COD_NoPaymentURL(t *testing.T) {
 	svc := service.NewOrderService(mockRepo, mockPricing, mockKafka)
 
 	req := validCreateOrderRequest()
-	req.PaymentType = model.PaymentCOD
+	req.PaymentType = domain.PaymentCOD
 	ctx := context.Background()
 
 	mockPricing.EXPECT().GetPrice(ctx, gomock.Any()).Return(validPricingResponse(), nil)
@@ -130,10 +128,10 @@ func TestCreateOrder_ExpressService(t *testing.T) {
 	svc := service.NewOrderService(mockRepo, mockPricing, mockKafka)
 
 	req := validCreateOrderRequest()
-	req.ServiceType = model.ServiceExpress
+	req.ServiceType = domain.ServiceExpress
 	ctx := context.Background()
 
-	expressPricing := &model.PricingResponse{
+	expressPricing := &domain.PricingResponse{
 		BaseFare:     30000,
 		Insurance:    2000,
 		Discount:     0,
@@ -148,7 +146,7 @@ func TestCreateOrder_ExpressService(t *testing.T) {
 	resp, err := svc.CreateOrder(ctx, req)
 
 	require.NoError(t, err)
-	assert.Equal(t, 32000.0, resp.TotalPrice)
+	assert.Equal(t, 32000.0, resp.TotalCost)
 }
 
 // TestCreateOrder_PricingServiceError verifies that if the Pricing Service fails,
@@ -257,7 +255,7 @@ func TestCreateOrder_AWBIsUnique(t *testing.T) {
 	resp2, _ := svc.CreateOrder(ctx, validCreateOrderRequest())
 
 	assert.NotEqual(t, resp1.AWBNumber, resp2.AWBNumber, "Every AWB must be unique")
-	assert.NotEqual(t, resp1.TransactionID, resp2.TransactionID)
+	assert.NotEqual(t, resp1.PaymentRef, resp2.PaymentRef)
 }
 
 // TestCreateOrder_VolumetricWeightCalculation verifies that volumetric weight
@@ -286,8 +284,8 @@ func TestCreateOrder_VolumetricWeightCalculation(t *testing.T) {
 	// Capture the order passed to Create and assert its volumetric weight
 	mockRepo.EXPECT().
 		Create(ctx, gomock.Any()).
-		DoAndReturn(func(_ context.Context, order *model.Order) error {
-			assert.InDelta(t, expectedVolumetric, order.WeightVolumetri, 0.001,
+		DoAndReturn(func(_ context.Context, order *domain.Order) error {
+			assert.InDelta(t, expectedVolumetric, order.VolumetricWeightKg, 0.001,
 				"Volumetric weight must be L*W*H/6000")
 			return nil
 		})
@@ -327,8 +325,7 @@ func TestCreateOrder_KafkaEventContainsCorrectAWB(t *testing.T) {
 
 	assert.Equal(t, resp.AWBNumber, capturedEvent.AWBNumber,
 		"Kafka event AWB must match the response AWB")
-	assert.Equal(t, resp.TransactionID, capturedEvent.TransactionID)
-	assert.Equal(t, "Bandung", capturedEvent.DestCity)
+	assert.Equal(t, resp.PaymentRef, capturedEvent.TransactionID)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -347,12 +344,12 @@ func TestGetOrderByAWB_Success(t *testing.T) {
 	svc := service.NewOrderService(mockRepo, mockPricing, mockKafka)
 	ctx := context.Background()
 
-	expectedOrder := &model.Order{
+	expectedOrder := &domain.Order{
 		AWBNumber:    "JNE-abc12345",
-		Status:       model.StatusOrderCreated,
+		Status:       domain.StatusOrderCreated,
 		SenderName:   "Budi Santoso",
 		ReceiverName: "Ani Rahayu",
-		TotalPrice:   17000,
+		TotalCost:    17000,
 	}
 
 	mockRepo.EXPECT().
@@ -363,7 +360,7 @@ func TestGetOrderByAWB_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "JNE-abc12345", result.AWBNumber)
-	assert.Equal(t, model.StatusOrderCreated, result.Status)
+	assert.Equal(t, domain.StatusOrderCreated, result.Status)
 }
 
 // TestGetOrderByAWB_NotFound verifies that a missing AWB returns an error.

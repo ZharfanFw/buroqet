@@ -34,14 +34,16 @@ const (
 // TrackingEvent merepresentasikan satu kejadian/pergerakan paket
 type TrackingEvent struct {
 	ID          string    `bson:"_id,omitempty"    json:"id"`
-	AWB         string    `bson:"awb"              json:"awb"`               // Nomor Airway Bill
-	Status      string    `bson:"status"           json:"status"`            // Status baru setelah event
-	Location    string    `bson:"location"         json:"location"`          // Nama hub/lokasi
-	HubID       string    `bson:"hub_id"           json:"hub_id"`            // ID hub
-	Description string    `bson:"description"      json:"description"`       // Keterangan tambahan
-	Timestamp   time.Time `bson:"timestamp"        json:"timestamp"`         // Waktu event terjadi
-	CreatedAt   time.Time `bson:"created_at"       json:"created_at"`        // Waktu dicatat di sistem
-	Source      string    `bson:"source"           json:"source"`            // Service pengirim event (WMS, Dispatch, e-POD)
+	AWB         string    `bson:"awb"              json:"awb"`
+	Status      string    `bson:"status"           json:"status"`
+	Location    string    `bson:"location"         json:"location"`
+	HubID       string    `bson:"hub_id"           json:"hub_id"`
+	Description string    `bson:"description"      json:"description"`
+	Latitude    float64   `bson:"latitude"         json:"latitude"`
+	Longitude   float64   `bson:"longitude"        json:"longitude"`
+	Timestamp   time.Time `bson:"timestamp"        json:"timestamp"`
+	CreatedAt   time.Time `bson:"created_at"       json:"created_at"`
+	Source      string    `bson:"source"           json:"source"`
 }
 
 // TrackingHistory adalah respons API: kumpulan events terurut berdasarkan waktu
@@ -70,14 +72,18 @@ type TrackingStatus struct {
 // Tracking service mendengarkan beberapa topic Kafka
 // =========================================================
 
-// KafkaTrackingPayload adalah format pesan Kafka yang diterima
+// KafkaTrackingPayload adalah format pesan Kafka yang diterima dari service lain.
+// Tracking service subscribe ke topic dari WMS, Dispatch, dan ePOD.
 type KafkaTrackingPayload struct {
-	AWB       string    `json:"awb"`
-	Status    string    `json:"status"`
-	HubID     string    `json:"hub_id"`
-	Location  string    `json:"location"`
-	Timestamp time.Time `json:"timestamp"`
-	Source    string    `json:"source"`
+	AWB         string    `json:"awb"`
+	Status      string    `json:"status"`
+	HubID       string    `json:"hub_id"`
+	Location    string    `json:"location"`
+	Description string    `json:"description"`  // keterangan tambahan dari service lain
+	Latitude    float64   `json:"latitude"`     // koordinat GPS (opsional)
+	Longitude   float64   `json:"longitude"`    // koordinat GPS (opsional)
+	Timestamp   time.Time `json:"timestamp"`
+	Source      string    `json:"source"`
 }
 
 // =========================================================
@@ -87,12 +93,15 @@ type KafkaTrackingPayload struct {
 // AddTrackingEventRequest adalah payload untuk menambahkan event baru
 // (digunakan baik dari HTTP API maupun dari konsumsi Kafka)
 type AddTrackingEventRequest struct {
-	AWB       string    `json:"awb"`
-	Status    string    `json:"status"`
-	HubID     string    `json:"hub_id"`
-	Location  string    `json:"location"`
-	Timestamp time.Time `json:"timestamp"`
-	Source    string    `json:"source"`
+	AWB         string    `json:"awb"`
+	Status      string    `json:"status"`
+	HubID       string    `json:"hub_id"`
+	Location    string    `json:"location"`
+	Description string    `json:"description"`
+	Latitude    float64   `json:"latitude"`
+	Longitude   float64   `json:"longitude"`
+	Timestamp   time.Time `json:"timestamp"`
+	Source      string    `json:"source"`
 }
 
 // =========================================================
