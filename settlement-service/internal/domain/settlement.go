@@ -33,6 +33,7 @@ type CourierSummary struct {
 type SettlementRepository interface {
 	CreateCommissionLog(ctx context.Context, log *CommissionLog) error
 	GetCommissionByAWB(ctx context.Context, awb string) (*CommissionLog, error)
+	GetAllCommissions(ctx context.Context) ([]CommissionLog, error)
 	GetCommissionsByCourier(ctx context.Context, courierID string) ([]CommissionLog, error)
 	GetCourierSummary(ctx context.Context, courierID string) (*CourierSummary, error)
 	MarkAsPaid(ctx context.Context, courierID string) error

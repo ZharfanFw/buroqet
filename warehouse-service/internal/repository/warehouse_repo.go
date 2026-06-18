@@ -32,6 +32,12 @@ func (r *warehouseRepository) GetPackageByAWB(ctx context.Context, awb string) (
 	return &pkg, nil
 }
 
+func (r *warehouseRepository) GetAllPackages(ctx context.Context) ([]domain.Package, error) {
+	var packages []domain.Package
+	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&packages).Error
+	return packages, err
+}
+
 func (r *warehouseRepository) UpdatePackageStatus(ctx context.Context, awb string, status string) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.Package{}).

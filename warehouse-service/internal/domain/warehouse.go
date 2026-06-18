@@ -33,6 +33,7 @@ type Manifest struct {
 type WarehouseRepository interface {
     SavePackage(ctx context.Context, pkg *Package) error
     GetPackageByAWB(ctx context.Context, awb string) (*Package, error)
+    GetAllPackages(ctx context.Context) ([]Package, error)
     UpdatePackageStatus(ctx context.Context, awb string, status string) error
     CreateManifest(ctx context.Context, manifest *Manifest) error
     GetManifestByID(ctx context.Context, id string) (*Manifest, error)

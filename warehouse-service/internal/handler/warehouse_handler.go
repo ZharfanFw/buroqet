@@ -1,7 +1,6 @@
 // warehouse-service/internal/handler/warehouse_handler.go
 // HTTP Handler layer untuk Warehouse Management Service.
 // Bertanggung jawab: decode request, validasi method HTTP, panggil service, encode response.
-// Mengikuti pola yang sama dengan tracking-service/handler (concrete service dependency).
 
 package handler
 
@@ -33,8 +32,16 @@ type DispatchRequest struct {
 	ManifestID string `json:"manifest_id"`
 }
 
+// setCORSHeaders menambahkan CORS header agar Frontend bisa memanggil API ini
+func setCORSHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+}
+
 // writeJSON adalah helper untuk menulis response JSON secara konsisten
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
@@ -43,6 +50,41 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 // writeError adalah helper untuk response error yang konsisten
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+// handleCORSPreflight menangani OPTIONS preflight request
+func handleCORSPreflight(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method == http.MethodOptions {
+		setCORSHeaders(w)
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
+	return false
+}
+
+// =========================================================
+// GET /api/v1/packages
+// Ambil daftar semua package yang ada di gudang.
+// Response 200: array of Package
+// =========================================================
+
+func (h *WarehouseHandler) ListPackages(w http.ResponseWriter, r *http.Request) {
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	packages, err := h.service.ListPackages(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "gagal mengambil data packages: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, packages)
 }
 
 // =========================================================
@@ -54,6 +96,10 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // =========================================================
 
 func (h *WarehouseHandler) ProcessInbound(w http.ResponseWriter, r *http.Request) {
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
 	// Hanya terima method POST
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -94,6 +140,10 @@ func (h *WarehouseHandler) ProcessInbound(w http.ResponseWriter, r *http.Request
 // =========================================================
 
 func (h *WarehouseHandler) DispatchManifest(w http.ResponseWriter, r *http.Request) {
+	if handleCORSPreflight(w, r) {
+		return
+	}
+
 	// Hanya terima method POST
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")

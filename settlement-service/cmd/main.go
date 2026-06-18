@@ -11,6 +11,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 
 	"settlement-service/internal/domain"
 	"settlement-service/internal/handler"
@@ -26,7 +27,7 @@ func main() {
 	dbPass := getEnv("DB_PASSWORD", "settlementpassword")
 	dbName := getEnv("DB_NAME", "settlement_db")
 	dbPort := getEnv("DB_PORT", "5432")
-	appPort := getEnv("APP_PORT", "8081")
+	appPort := getEnv("APP_PORT", "8085")
 	pricingURL := getEnv("PRICING_SERVICE_URL", "http://pricing-service:8084")
 	kafkaBroker := getEnv("KAFKA_BROKER", "localhost:9092")
 
@@ -34,10 +35,17 @@ func main() {
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		dbHost, dbUser, dbPass, dbName, dbPort,
 	)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			TablePrefix: "settlement.", // Set schema ke settlement
+		},
+	})
 	if err != nil {
 		log.Fatalf("Gagal koneksi ke database: %v", err)
 	}
+
+	// Buat schema jika belum ada
+	db.Exec("CREATE SCHEMA IF NOT EXISTS settlement")
 
 	if err := db.AutoMigrate(&domain.CommissionLog{}); err != nil {
 		log.Fatalf("Gagal migrate database: %v", err)
@@ -73,7 +81,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", h.HealthCheck)
 	mux.HandleFunc("/ready", h.HealthCheck)
-	mux.HandleFunc("/api/v1/commissions", h.ProcessCommission)
+	mux.HandleFunc("/api/v1/commissions", h.CommissionsHandler)
 	mux.HandleFunc("/api/v1/couriers/", h.GetCourierEarnings)
 
 	// Graceful shutdown: dengarkan sinyal OS (SIGINT, SIGTERM)

@@ -45,6 +45,20 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 // =========================================================
+// CommissionsHandler — dispatches GET and POST for /api/v1/commissions
+// GET  → list all commissions
+// POST → record new commission
+// =========================================================
+
+func (h *SettlementHandler) CommissionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		h.ListCommissions(w, r)
+		return
+	}
+	h.ProcessCommission(w, r)
+}
+
+// =========================================================
 // POST /api/v1/commissions
 // Proses dan catat komisi kurir secara manual.
 // Body: { "courier_id": "...", "awb": "...", "service_type": "REGULER|EXPRESS" }
@@ -94,6 +108,36 @@ func (h *SettlementHandler) ProcessCommission(w http.ResponseWriter, r *http.Req
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]string{"message": "commission recorded successfully"})
+}
+
+// =========================================================
+// GET /api/v1/commissions
+// Ambil daftar semua commission log.
+// Response 200: array of CommissionLog
+// =========================================================
+
+func (h *SettlementHandler) ListCommissions(w http.ResponseWriter, r *http.Request) {
+	// Handle CORS preflight
+	if r.Method == http.MethodOptions {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	logs, err := h.service.GetAllCommissions(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "gagal mengambil data commissions: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, logs)
 }
 
 // =========================================================

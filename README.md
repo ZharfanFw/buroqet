@@ -89,9 +89,25 @@ docker exec -it buroqet-postgres psql -U buroqet -c "CREATE DATABASE wms_db;"
 docker exec -it buroqet-postgres psql -U buroqet -c "CREATE DATABASE settlement_db;"
 ```
 
-### Step 2 — Jalankan Service Go
+### Step 2 — Jalankan Service (PILIH SALAH SATU CARA)
 
-Buka terminal terpisah untuk setiap service. Set environment variable lalu jalankan.
+> [!WARNING]
+> **PENTING:** Ada DUA cara untuk menjalankan sistem ini.
+> **CARA 1 (Disarankan):** Jalankan semuanya dengan Docker Compose. Kamu tidak perlu menjalankan `go run` apa pun. Cukup ketik `docker compose up -d` lalu langsung lompat ke Step 3 (Frontend).
+> **CARA 2 (Untuk Debugging):** Jika kamu ingin me-run servicenya manual di terminal, pastikan kamu **hanya menjalankan database saja** di Docker (`docker compose up -d postgres mongodb redis zookeeper kafka`), lalu kamu bisa menjalankan `go run` di bawah ini satu per satu.
+> 
+> 🛑 **SANGAT PENTING JIKA MENDAPAT ERROR "Only one usage of each socket address" (Port Conflict):**
+> Jika kamu sebelumnya sudah terlanjur menjalankan `docker compose up -d` (yang menyalakan semua service backend), port 8080, 8081, dsb **sudah dipakai oleh Docker**. Kamu WAJIB mematikan containernya terlebih dahulu sebelum menjalankan `go run` di terminal:
+> ```bash
+> docker compose stop auth-service tracking-service order-management-service dispatch-fleet-service pricing-service settlement-service epod-service warehouse-service
+> ```
+
+---
+**Instruksi di bawah ini HANYA untuk CARA 2 (Manual Run). Jika kamu menggunakan CARA 1, LEWATI BAGIAN INI!**
+
+### Pilihan A — Koneksi ke Local Infra (Docker)
+Gunakan environment variables berikut jika kamu ingin connect ke `postgres`, `mongodb`, dan `redis` yang berjalan di Docker lokalmu.
+
 
 #### Auth Service (port 8080)
 ```bash
@@ -155,7 +171,7 @@ $env:DB_HOST="localhost"
 $env:DB_USER="buroqet"
 $env:DB_PASSWORD="buroqet123"
 $env:DB_NAME="settlement_db"
-$env:APP_PORT="8081"
+$env:APP_PORT="8085"
 $env:KAFKA_BROKER="localhost:9092"
 $env:PRICING_SERVICE_URL="http://localhost:8084"
 go run ./cmd/main.go
@@ -175,7 +191,62 @@ $env:DB_HOST="localhost"
 $env:DB_USER="buroqet"
 $env:DB_PASSWORD="buroqet123"
 $env:DB_NAME="wms_db"
-$env:APP_PORT="8080"
+$env:APP_PORT="8087"
+$env:KAFKA_BROKER="localhost:9092"
+go run ./cmd/main.go
+```
+
+### Pilihan B — Koneksi ke Cloud Database (Supabase & MongoDB Atlas)
+Jika kamu ingin menjalankan `go run` di terminal tapi connect ke **Database Cloud (Supabase untuk Postgres & Atlas untuk MongoDB)**, gunakan setup `env` berikut.
+*(Catatan: Redis sebaiknya tetap menggunakan `localhost:6379` karena Upstash yang tersedia adalah versi REST API, sedangkan kode Go menggunakan koneksi Redis TCP murni).*
+
+#### Auth Service (port 8080)
+```powershell
+cd auth-service
+$env:DB_HOST="aws-1-ap-southeast-1.pooler.supabase.com"
+$env:DB_PORT="5432"
+$env:DB_USER="postgres.gvmknmaybejslbghzsov"
+$env:DB_PASSWORD="HfuyrF1xd1iUVagY"
+$env:DB_NAME="postgres"
+$env:JWT_SECRET="dev-secret-key"
+go run ./cmd/main.go
+```
+
+#### Tracking Service (port 8081)
+```powershell
+cd tracking-service
+$env:MONGO_URI="mongodb+srv://zharfanfaz21_db_user:bsUIL2Yyewp5hfUj@buroqet-tracking.qdsmduw.mongodb.net/?appName=buroqet-tracking"
+$env:MONGO_DB="tracking_db"
+$env:REDIS_ADDR="localhost:6379"
+$env:REDIS_PASSWORD="buroqet123"
+$env:KAFKA_BROKER="localhost:9092"
+$env:APP_PORT="8081"
+go run ./cmd/main.go
+```
+
+#### Settlement Service (port 8085)
+```powershell
+cd settlement-service
+$env:DB_HOST="aws-1-ap-southeast-1.pooler.supabase.com"
+$env:DB_PORT="5432"
+$env:DB_USER="postgres.gvmknmaybejslbghzsov"
+$env:DB_PASSWORD="HfuyrF1xd1iUVagY"
+$env:DB_NAME="postgres"
+$env:APP_PORT="8085"
+$env:KAFKA_BROKER="localhost:9092"
+$env:PRICING_SERVICE_URL="http://localhost:8084"
+go run ./cmd/main.go
+```
+
+#### Warehouse Service (port 8087)
+```powershell
+cd warehouse-service
+$env:DB_HOST="aws-1-ap-southeast-1.pooler.supabase.com"
+$env:DB_PORT="5432"
+$env:DB_USER="postgres.gvmknmaybejslbghzsov"
+$env:DB_PASSWORD="HfuyrF1xd1iUVagY"
+$env:DB_NAME="postgres"
+$env:APP_PORT="8087"
 $env:KAFKA_BROKER="localhost:9092"
 go run ./cmd/main.go
 ```

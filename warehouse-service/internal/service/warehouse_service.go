@@ -80,6 +80,11 @@ func (s *WarehouseService) ProcessInbound(ctx context.Context, awb string, hubID
 	return pkg, nil
 }
 
+// ListPackages mengambil semua paket dari database untuk ditampilkan di Frontend.
+func (s *WarehouseService) ListPackages(ctx context.Context) ([]domain.Package, error) {
+	return s.repo.GetAllPackages(ctx)
+}
+
 // DispatchManifest mengirim manifest dan update status semua AWB di dalamnya ke ON_TRANSIT.
 // Workflow: validasi → cek manifest exists → cek tidak kosong → dispatch DB → publish manifest.dispatched.
 // Side effect: publish event `manifest.dispatched` ke Kafka (sesuai Kafka Event Catalog).

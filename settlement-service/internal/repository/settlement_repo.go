@@ -36,6 +36,12 @@ func (r *settlementRepository) GetCommissionByAWB(ctx context.Context, awb strin
 	return &log, nil
 }
 
+func (r *settlementRepository) GetAllCommissions(ctx context.Context) ([]domain.CommissionLog, error) {
+	var logs []domain.CommissionLog
+	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&logs).Error
+	return logs, err
+}
+
 func (r *settlementRepository) GetCommissionsByCourier(ctx context.Context, courierID string) ([]domain.CommissionLog, error) {
 	var logs []domain.CommissionLog
 	err := r.db.WithContext(ctx).

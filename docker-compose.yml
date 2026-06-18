@@ -183,14 +183,14 @@ services:
       dockerfile: deployments/Dockerfile
     container_name: buroqet-settlement
     ports:
-      - "8085:8081"
+      - "8085:8085"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: buroqet
       DB_PASSWORD: buroqet123
       DB_NAME: settlement_db
-      APP_PORT: 8081
+      APP_PORT: 8085
       KAFKA_BROKER: kafka:29092
       PRICING_SERVICE_URL: http://pricing-service:8084
     depends_on:
@@ -226,14 +226,14 @@ services:
       dockerfile: deployments/Dockerfile
     container_name: buroqet-warehouse
     ports:
-      - "8087:8080"
+      - "8087:8087"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: buroqet
       DB_PASSWORD: buroqet123
       DB_NAME: wms_db
-      APP_PORT: 8080
+      APP_PORT: 8087
       KAFKA_BROKER: kafka:29092
     depends_on:
       postgres:

@@ -1,4 +1,4 @@
-FROM golang:1.25.6-alpine AS builder
+FROM golang:1.23-alpine AS builder
 RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -13,7 +13,7 @@ FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /root/
 COPY --from=builder /app/server .
-EXPOSE 8081
+EXPOSE 8085
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8081/health || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:8085/health || exit 1
 CMD ["./server"]

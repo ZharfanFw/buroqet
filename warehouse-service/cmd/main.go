@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 
 	"warehouse-service/internal/domain"
 	"warehouse-service/internal/handler"
@@ -22,7 +23,7 @@ func main() {
 	dbPass := getEnv("DB_PASSWORD", "wmspassword")
 	dbName := getEnv("DB_NAME", "wms_db")
 	dbPort := getEnv("DB_PORT", "5432")
-	appPort := getEnv("APP_PORT", "8080")
+	appPort := getEnv("APP_PORT", "8087")
 	kafkaBroker := getEnv("KAFKA_BROKER", "localhost:9092")
 
 	// Setup koneksi database
@@ -30,10 +31,17 @@ func main() {
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		dbHost, dbUser, dbPass, dbName, dbPort,
 	)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NamingStrategy: schema.NamingStrategy{
+			TablePrefix: "warehouse.", // Set schema ke warehouse
+		},
+	})
 	if err != nil {
 		log.Fatalf("Gagal koneksi ke database: %v", err)
 	}
+
+	// Buat schema jika belum ada
+	db.Exec("CREATE SCHEMA IF NOT EXISTS warehouse")
 
 	// Auto migrate tabel (manifest dulu karena packages punya FK ke manifests)
 	if err := db.AutoMigrate(&domain.Manifest{}, &domain.Package{}); err != nil {
@@ -50,6 +58,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", h.HealthCheck)
 	mux.HandleFunc("/ready", h.HealthCheck)
+	mux.HandleFunc("/api/v1/packages", h.ListPackages)
 	mux.HandleFunc("/api/v1/inbound", h.ProcessInbound)
 	mux.HandleFunc("/api/v1/dispatch", h.DispatchManifest)
 

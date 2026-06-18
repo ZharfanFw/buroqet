@@ -65,3 +65,8 @@ func (s *SettlementService) GetCourierEarnings(ctx context.Context, courierID st
 	}
 	return s.repo.GetCourierSummary(ctx, courierID)
 }
+
+// GetAllCommissions mengambil semua commission log untuk ditampilkan di Frontend.
+func (s *SettlementService) GetAllCommissions(ctx context.Context) ([]domain.CommissionLog, error) {
+	return s.repo.GetAllCommissions(ctx)
+}

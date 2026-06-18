@@ -34,7 +34,7 @@ spec:
           imagePullPolicy: Always
           
           ports:
-            - containerPort: 8080
+            - containerPort: 8087
           
           # Environment variable dari ConfigMap dan Secret
           env:
@@ -78,7 +78,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: 8087
             initialDelaySeconds: 15  # Tunggu 15 detik setelah container start
             periodSeconds: 20         # Cek setiap 20 detik
             failureThreshold: 3       # Restart setelah 3 kali gagal berturut-turut
@@ -88,7 +88,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /ready
-              port: 8080
+              port: 8087
             initialDelaySeconds: 5
             periodSeconds: 10
             failureThreshold: 3

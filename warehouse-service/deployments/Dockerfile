@@ -2,7 +2,7 @@
 # STAGE 1: BUILD STAGE
 # Menggunakan image Go yang besar untuk compile
 # ================================================
-FROM golang:1.25.6-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # Install dependency yang dibutuhkan untuk build
 RUN apk add --no-cache git ca-certificates
@@ -37,11 +37,11 @@ WORKDIR /root/
 COPY --from=builder /app/server .
 
 # Expose port service
-EXPOSE 8080
+EXPOSE 8087
 
 # Health check — Kubernetes akan pakai ini
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:8087/health || exit 1
 
 # Jalankan binary
 CMD ["./server"]
