@@ -212,5 +212,16 @@ jobs:
           kubectl apply -f frontend/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/frontend -n buroqet --timeout=120s
 
+      - name: Install Nginx Ingress Controller
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml
+          echo "Waiting for Ingress Controller to deploy..."
+          sleep 20
+
       - name: Deploy Ingress
         run: kubectl apply -f infra/kubernetes/ingress.yaml
+
+      - name: Get Ingress IP
+        run: |
+          echo "=== Ingress Controller Service ==="
+          kubectl get svc -n ingress-nginx ingress-nginx-controller || true
