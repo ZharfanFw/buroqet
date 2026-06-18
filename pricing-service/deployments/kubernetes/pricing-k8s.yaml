@@ -2,39 +2,35 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pricing-service
-
 spec:
   replicas: 2
-
   selector:
     matchLabels:
       app: pricing-service
-
   template:
     metadata:
       labels:
         app: pricing-service
-
     spec:
       containers:
         - name: pricing-service
           image: arpusauri/pricing-service:latest
-
           ports:
             - containerPort: 8080
+          # SUNTIKKAN TERSANGKA UTAMA KITA DI SINI
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres.gvmknmaybejslbghzsov:HfuyrF1xd1iUVagY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?search_path=pricing_schema"
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: pricing-service
-
 spec:
   selector:
     app: pricing-service
-
   ports:
     - port: 80
       targetPort: 8080
-
   type: ClusterIP
