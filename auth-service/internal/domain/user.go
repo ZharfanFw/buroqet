@@ -22,4 +22,5 @@ type AuthService interface {
     Register(name, email, password, role string) error
     Login(email, password string) (accessToken, refreshToken string, user *User, err error)
     ValidateToken(token string) (*User, error)
+    RefreshToken(token string) (newAccessToken, newRefreshToken string, err error)
 } 

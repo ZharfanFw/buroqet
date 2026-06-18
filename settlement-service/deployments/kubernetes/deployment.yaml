@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pricing-service
+  name: settlement-service
   namespace: buroqet
   labels:
-    app: pricing-service
+    app: settlement-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: pricing-service
+      app: settlement-service
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,12 +18,12 @@ spec:
   template:
     metadata:
       labels:
-        app: pricing-service
+        app: settlement-service
     spec:
       containers:
-        - name: pricing-service
+        - name: settlement-service
           # GANTI <your-github-username> dengan username GitHub org kalian
-          image: ghcr.io/zharfanfw/pricing-service:latest
+          image: ghcr.io/zharfanfw/settlement-service:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8081
@@ -31,22 +31,29 @@ spec:
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
-                  name: pricing-config
+                  name: settlement-config
                   key: db_host
             - name: DB_PORT
               value: "5432"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: pricing-secret
+                  name: settlement-secret
                   key: db_user
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: pricing-secret
+                  name: settlement-secret
                   key: db_password
             - name: DB_NAME
-              value: "pricing_db"
+              value: "settlement_db"
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: settlement-config
+                  key: kafka_broker
+            - name: PRICING_SERVICE_URL
+              value: "http://pricing-service:8084"
             - name: APP_PORT
               value: "8081"
           resources:
@@ -69,40 +76,26 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: pricing-service
-  namespace: buroqet
-  labels:
-    app: pricing-service
-spec:
-  selector:
-    app: pricing-service
-  ports:
-    - protocol: TCP
-      port: 8084
-      targetPort: 8081
-  type: ClusterIP
----
+# Service sudah ada di service.yaml, ini yang baru dengan namespace
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: pricing-config
+  name: settlement-config
   namespace: buroqet
   labels:
-    app: pricing-service
+    app: settlement-service
 data:
   db_host: "GANTI.neon.tech"
+  kafka_broker: "GANTI_DENGAN_UPSTASH_KAFKA_BROKER"
   app_port: "8081"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: pricing-secret
+  name: settlement-secret
   namespace: buroqet
   labels:
-    app: pricing-service
+    app: settlement-service
 type: Opaque
 # ⚠️ FILE INI JANGAN DI-COMMIT dengan nilai asli
 stringData:

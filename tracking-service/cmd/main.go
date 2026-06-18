@@ -31,7 +31,7 @@ func main() {
 	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
 	redisPass := getEnv("REDIS_PASSWORD", "")
 	kafkaBroker := getEnv("KAFKA_BROKER", "localhost:9092")
-	appPort  := getEnv("APP_PORT", "8080")
+	appPort  := getEnv("APP_PORT", "8081")
 
 	// =========================================================
 	// Inisialisasi MongoDB
@@ -69,6 +69,11 @@ func main() {
 	// Inisialisasi Kafka Consumer
 	// Tracking service mendengarkan event dari: WMS, Dispatch Service, e-POD Service
 	kafkaGroupID := getEnv("KAFKA_GROUP_ID", "tracking-service-consumer")
+	// Pastikan semua Kafka topics sudah ada sebelum consumer dibuat
+	if err := kafka.EnsureTopics(kafkaBroker, kafka.DefaultTopics()); err != nil {
+		log.Printf("WARNING: EnsureTopics gagal (Kafka mungkin belum ready): %v", err)
+	}
+
 	kafkaConsumer := kafka.NewTrackingKafkaConsumer(kafkaBroker, kafkaGroupID)
 	if err := kafkaConsumer.Subscribe(kafka.DefaultTopics()); err != nil {
 		log.Fatalf("Gagal subscribe ke Kafka topics: %v", err)
@@ -134,9 +139,6 @@ func main() {
 		}
 	})
 
-	// Serve UI static files jika ada folder ./ui
-	mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
-
 	// =========================================================
 	// Start HTTP Server dengan Graceful Shutdown
 	// =========================================================
@@ -182,31 +184,37 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// corsMiddleware menambahkan CORS header agar UI bisa akses API dari browser.
-// Sesuaikan allowedOrigins di production untuk keamanan.
+// corsMiddleware menambahkan CORS header agar frontend React bisa akses API dari browser.
+// Menggunakan allowlist origin yang mencakup semua dev & production origin yang valid.
 func corsMiddleware(next http.Handler) http.Handler {
 	allowedOrigins := map[string]bool{
-		"http://localhost:3000": true,
-		"http://localhost:8080": true,
-		"http://127.0.0.1:8080": true,
-		"null": true, // file:// origin
+		"http://localhost:3000":     true, // React production build (docker)
+		"http://localhost:5173":     true, // Vite dev server (default)
+		"http://127.0.0.1:5173":    true, // Vite dev server (IP)
+		"http://localhost:4173":     true, // Vite preview
+		"http://localhost:8081":     true, // Same service
+		"null":                      true, // file:// origin (testing lokal)
+	}
+
+	// Tambahkan origin dari environment variable (untuk production)
+	if envOrigin := getEnv("ALLOWED_ORIGIN", ""); envOrigin != "" {
+		allowedOrigins[envOrigin] = true
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-		} else if origin == "" {
-			// Same-origin request — no CORS header needed
-		} else {
-			// Unknown origin — reject preflight, allow pass-through for non-preflight
+			w.Header().Set("Vary", "Origin")
+		} else if origin != "" {
+			// Unknown origin — tolak preflight
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Max-Age", "3600")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
