@@ -91,3 +91,47 @@ func (mr *MockOrderRepositoryMockRecorder) UpdateStatus(ctx, awbNumber, status i
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockOrderRepository)(nil).UpdateStatus), ctx, awbNumber, status)
 }
+
+// FindAll mocks base method
+func (m *MockOrderRepository) FindAll(ctx context.Context, req model.ListOrdersRequest) (*model.ListOrdersResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindAll", ctx, req)
+	ret0, _ := ret[0].(*model.ListOrdersResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindAll indicates an expected call of FindAll
+func (mr *MockOrderRepositoryMockRecorder) FindAll(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAll", reflect.TypeOf((*MockOrderRepository)(nil).FindAll), ctx, req)
+}
+
+// FindByCustomerID mocks base method
+func (m *MockOrderRepository) FindByCustomerID(ctx context.Context, customerID string, page, limit int) (*model.ListOrdersResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByCustomerID", ctx, customerID, page, limit)
+	ret0, _ := ret[0].(*model.ListOrdersResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByCustomerID indicates an expected call of FindByCustomerID
+func (mr *MockOrderRepositoryMockRecorder) FindByCustomerID(ctx, customerID, page, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByCustomerID", reflect.TypeOf((*MockOrderRepository)(nil).FindByCustomerID), ctx, customerID, page, limit)
+}
+
+// DeleteByAWB mocks base method
+func (m *MockOrderRepository) DeleteByAWB(ctx context.Context, awbNumber string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByAWB", ctx, awbNumber)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByAWB indicates an expected call of DeleteByAWB
+func (mr *MockOrderRepositoryMockRecorder) DeleteByAWB(ctx, awbNumber interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByAWB", reflect.TypeOf((*MockOrderRepository)(nil).DeleteByAWB), ctx, awbNumber)
+}

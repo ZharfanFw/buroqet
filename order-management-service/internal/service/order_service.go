@@ -24,6 +24,11 @@ type PricingClient interface {
 type OrderService interface {
 	CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.CreateOrderResponse, error)
 	GetOrderByAWB(ctx context.Context, awbNumber string) (*domain.Order, error)
+	ListOrders(ctx context.Context, req domain.ListOrdersRequest) (*domain.ListOrdersResponse, error)
+	UpdateOrderStatus(ctx context.Context, awbNumber string, req domain.UpdateOrderStatusRequest) (*domain.Order, error)
+	GetOrderByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error)
+	GetOrdersByCustomerID(ctx context.Context, customerID string, page, limit int) (*domain.ListOrdersResponse, error)
+	CancelOrder(ctx context.Context, awbNumber string) (*domain.CancelOrderResponse, error)
 }
 
 // orderService is the concrete implementation.
@@ -185,6 +190,78 @@ func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*do
 		return nil, fmt.Errorf("order not found: %w", err)
 	}
 	return order, nil
+}
+
+// ListOrders returns a paginated list of orders, optionally filtered by status or customer.
+func (s *orderService) ListOrders(ctx context.Context, req domain.ListOrdersRequest) (*domain.ListOrdersResponse, error) {
+	result, err := s.repo.FindAll(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list orders: %w", err)
+	}
+	return result, nil
+}
+
+// UpdateOrderStatus validates the new status and persists it.
+// It rejects attempts to set an already-current status.
+func (s *orderService) UpdateOrderStatus(ctx context.Context, awbNumber string, req domain.UpdateOrderStatusRequest) (*domain.Order, error) {
+	order, err := s.repo.FindByAWB(ctx, awbNumber)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+
+	if order.Status == req.Status {
+		return nil, fmt.Errorf("order already has status %s", req.Status)
+	}
+
+	if err := s.repo.UpdateStatus(ctx, awbNumber, req.Status); err != nil {
+		return nil, fmt.Errorf("failed to update order status: %w", err)
+	}
+
+	order.Status = req.Status
+	if req.Notes != "" {
+		order.Notes = req.Notes
+	}
+	return order, nil
+}
+
+// GetOrderByTransactionID fetches an order by its payment reference / transaction ID.
+func (s *orderService) GetOrderByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error) {
+	order, err := s.repo.FindByTransactionID(ctx, transactionID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found for transaction %s: %w", transactionID, err)
+	}
+	return order, nil
+}
+
+// GetOrdersByCustomerID returns a paginated list of orders for a specific customer.
+func (s *orderService) GetOrdersByCustomerID(ctx context.Context, customerID string, page, limit int) (*domain.ListOrdersResponse, error) {
+	result, err := s.repo.FindByCustomerID(ctx, customerID, page, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders for customer %s: %w", customerID, err)
+	}
+	return result, nil
+}
+
+// CancelOrder deletes an order only if it has not been picked up yet.
+// Orders past ORDER_CREATED cannot be cancelled to prevent logistics disruption.
+func (s *orderService) CancelOrder(ctx context.Context, awbNumber string) (*domain.CancelOrderResponse, error) {
+	order, err := s.repo.FindByAWB(ctx, awbNumber)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+
+	if order.Status != domain.StatusOrderCreated {
+		return nil, fmt.Errorf("order %s cannot be cancelled: current status is %s (only ORDER_CREATED orders can be cancelled)", awbNumber, order.Status)
+	}
+
+	if err := s.repo.DeleteByAWB(ctx, awbNumber); err != nil {
+		return nil, fmt.Errorf("failed to cancel order: %w", err)
+	}
+
+	return &domain.CancelOrderResponse{
+		AWBNumber: awbNumber,
+		Message:   fmt.Sprintf("Order %s has been successfully cancelled", awbNumber),
+	}, nil
 }
 
 // generateAWB creates a unique AWB in the format "BQ-YYYY-XXX-NNN" sesuai spesifikasi Buroqet.
