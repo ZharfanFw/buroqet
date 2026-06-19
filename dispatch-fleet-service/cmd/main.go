@@ -29,8 +29,13 @@ func main() {
 	if dbName == "" { dbName = "dispatch_db" }
 	if dbPort == "" { dbPort = "5432" }
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbHost, dbUser, dbPass, dbName, dbPort)
+	dbSslMode := os.Getenv("DB_SSLMODE")
+	if dbSslMode == "" {
+		dbSslMode = "require"
+	}
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		dbHost, dbUser, dbPass, dbName, dbPort, dbSslMode)
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {

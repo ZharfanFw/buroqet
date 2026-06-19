@@ -19,17 +19,18 @@ export const API_ENDPOINTS = {
     status: (id: string) => `${BASE_URL}/orders/${id}/status`,
   },
   dispatch: {
-    base: `${BASE_URL}/dispatch`,
-    fleet: `${BASE_URL}/dispatch/fleet`,
-    assign: (id: string) => `${BASE_URL}/dispatch/${id}/assign`,
+    base: `${BASE_URL}/dispatch/v1/dispatch`,
+    assign: `${BASE_URL}/dispatch/v1/dispatch/assign`,
+    startDelivery: `${BASE_URL}/dispatch/v1/dispatch/start-delivery`,
   },
   pricing: {
     base: `${BASE_URL}/pricing`,
     calculate: `${BASE_URL}/pricing/calculate`,
   },
   settlement: {
-    base: `${BASE_URL}/settlement`,
-    byId: (id: string) => `${BASE_URL}/settlement/${id}`,
+    base: `${BASE_URL}/settlement/api/v1`,
+    commissions: `${BASE_URL}/settlement/api/v1/commissions`,
+    earnings: (courierId: string) => `${BASE_URL}/settlement/api/v1/couriers/${courierId}/earnings`,
   },
   epod: {
     base: `${BASE_URL}/epod`,
@@ -37,10 +38,10 @@ export const API_ENDPOINTS = {
     upload: `${BASE_URL}/epod/upload`,
   },
   warehouse: {
-    base: `${BASE_URL}/warehouse`,
-    inventory: `${BASE_URL}/warehouse/inventory`,
-    inbound: `${BASE_URL}/warehouse/inbound`,
-    outbound: `${BASE_URL}/warehouse/outbound`,
+    base: `${BASE_URL}/warehouse/api/v1`,
+    packages: `${BASE_URL}/warehouse/api/v1/packages`,
+    inbound: `${BASE_URL}/warehouse/api/v1/inbound`,
+    dispatch: `${BASE_URL}/warehouse/api/v1/dispatch`,
   },
 } as const;
 

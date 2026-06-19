@@ -31,9 +31,11 @@ func main() {
 	pricingURL := getEnv("PRICING_SERVICE_URL", "http://pricing-service:8084")
 	kafkaBroker := getEnv("KAFKA_BROKER", "localhost:9092")
 
+	dbSslMode := getEnv("DB_SSLMODE", "require")
+
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		dbHost, dbUser, dbPass, dbName, dbPort,
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		dbHost, dbUser, dbPass, dbName, dbPort, dbSslMode,
 	)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{

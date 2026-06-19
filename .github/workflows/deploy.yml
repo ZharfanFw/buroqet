@@ -252,6 +252,21 @@ jobs:
           kubectl apply -f pricing-service/deployments/kubernetes/pricing-k8s.yaml -n buroqet
           kubectl rollout status deployment/pricing-service -n buroqet --timeout=120s
 
+      - name: Deploy Warehouse Service
+        run: |
+          kubectl apply -f warehouse-service/deployments/kubernetes/deployment.yaml -n buroqet
+          kubectl rollout status deployment/warehouse-service -n buroqet --timeout=120s
+
+      - name: Deploy Dispatch Fleet Service
+        run: |
+          kubectl apply -f dispatch-fleet-service/deployments/kubernetes/deployment.yaml -n buroqet
+          kubectl rollout status deployment/dispatch-fleet-service -n buroqet --timeout=120s
+
+      - name: Deploy Settlement Service
+        run: |
+          kubectl apply -f settlement-service/deployments/kubernetes/deployment.yaml -n buroqet
+          kubectl rollout status deployment/settlement-service -n buroqet --timeout=120s
+
       - name: Install Nginx Ingress Controller
         run: |
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml

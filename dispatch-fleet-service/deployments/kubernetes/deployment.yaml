@@ -48,7 +48,9 @@ spec:
                   name: dispatch-secret
                   key: db_password
             - name: DB_NAME
-              value: "dispatch_db"
+              value: "postgres"
+            - name: KAFKA_BROKERS
+              value: "kafka.buroqet.svc.cluster.local:9092"
             - name: APP_PORT
               value: "8081"
           resources:
