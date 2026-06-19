@@ -6,8 +6,10 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"tracking-service/internal/domain"
@@ -85,7 +87,7 @@ func (c *RedisTrackingCache) DeleteStatus(ctx context.Context, awb string) error
 
 // ConnectRedis membuat koneksi ke Redis dengan connection pool optimal untuk high load
 func ConnectRedis(addr string, password string, db int) (*redis.Client, error) {
-	client := redis.NewClient(&redis.Options{
+	opts := &redis.Options{
 		Addr:     addr,
 		Password: password,
 		DB:       db,
@@ -98,7 +100,16 @@ func ConnectRedis(addr string, password string, db int) (*redis.Client, error) {
 		WriteTimeout:    3 * time.Second,
 		PoolTimeout:     4 * time.Second,
 		ConnMaxIdleTime: 5 * time.Minute,
-	})
+	}
+
+	// Enable TLS if domain belongs to Upstash or indicates a TLS connection
+	if strings.Contains(addr, "upstash.io") || strings.Contains(addr, "rediss://") {
+		opts.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+
+	client := redis.NewClient(opts)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
