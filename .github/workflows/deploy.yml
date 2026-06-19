@@ -215,7 +215,8 @@ jobs:
 
       - name: Deploy ConfigMaps
         run: |
-          find . -path "*/kubernetes/configmap.yaml" | xargs -I{} kubectl apply -f {} -n buroqet
+          echo "Skipping ConfigMap deployment in pipeline; configmaps and secrets are managed manually via infra/scripts/setup-secrets.sh to protect secrets and avoid overwriting production configuration."
+
 
       - name: Deploy Services
         run: |
