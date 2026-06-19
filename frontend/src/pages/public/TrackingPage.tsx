@@ -2,7 +2,6 @@ import { useState } from 'react';
 import TrackingResult from './TrackingResult';
 import type { TrackingHistory } from '../../types';
 import { API_ENDPOINTS } from '../../utils/api-config';
-import './TrackingPage.css';
 
 export default function TrackingPage() {
   const [awb, setAwb] = useState('');
@@ -88,7 +87,6 @@ export default function TrackingPage() {
     } catch {
       setError('Gagal terhubung ke server. Pastikan tracking-service sedang berjalan.');
     } finally {
-      // If we didn't return early from mock
       if (trimmed !== 'BQ-2024-BENTO-123' && trimmed !== 'BQ-2024-JKT-001') {
         setLoading(false);
       }
@@ -96,23 +94,30 @@ export default function TrackingPage() {
   };
 
   return (
-    <div className="tracking-page">
-      {/* Header */}
-      <div className="page-header">
-        <h1>📦 Lacak Paket</h1>
-        <p>Masukkan nomor resi untuk melihat status pengiriman secara real-time</p>
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8 font-sans">
+      
+      {/* Header Container - Centered */}
+      <div className="w-full max-w-2xl text-center mb-10">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
+          📦 Lacak Paket
+        </h1>
+        <p className="text-lg text-slate-600">
+          Masukkan nomor resi untuk melihat status pengiriman secara real-time
+        </p>
       </div>
 
-      {/* Search Box */}
-      <div className="tracking-search-card card">
-        <form className="tracking-search-form" onSubmit={handleSearch}>
-          <div className="search-input-wrap">
-            <span className="search-icon">🔍</span>
+      {/* Search Box Card - Centered with distinct border/background */}
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-sm border-2 border-slate-200 p-6 md:p-8 mb-8">
+        <form className="flex flex-col sm:flex-row gap-4" onSubmit={handleSearch}>
+          <div className="relative flex-grow">
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-xl text-slate-400">
+              🔍
+            </span>
             <input
               id="tracking-awb-input"
               type="text"
-              className="search-input"
-              placeholder="Masukkan nomor resi, contoh: BQ-2024-JKT-001"
+              className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-200 text-slate-800 rounded-xl focus:bg-white focus:outline-none focus:border-[#79ae6f] focus:ring-4 focus:ring-[#79ae6f]/20 transition-all font-medium placeholder-slate-400"
+              placeholder="Contoh: BQ-2024-JKT-001"
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               autoComplete="off"
@@ -121,59 +126,70 @@ export default function TrackingPage() {
             {inputVal && (
               <button
                 type="button"
-                className="search-clear"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full w-6 h-6 flex items-center justify-center transition-colors"
                 onClick={() => { setInputVal(''); setData(null); setError(''); }}
-              >✕</button>
+              >
+                ✕
+              </button>
             )}
           </div>
           <button
             id="tracking-search-btn"
             type="submit"
-            className="btn btn-primary search-btn"
+            className="flex-shrink-0 bg-[#64965a] hover:bg-[#53804a] text-white px-8 py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] shadow-sm hover:shadow-md"
             disabled={loading || !inputVal.trim()}
           >
-            {loading ? <span className="spinner" /> : 'Lacak'}
+            {loading ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              'Lacak'
+            )}
           </button>
         </form>
 
         {/* Quick AWB examples */}
-        <div className="quick-examples">
-          <span className="quick-label">Contoh resi:</span>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-slate-500">Contoh resi:</span>
           {['BQ-2024-JKT-001', 'BQ-2024-BENTO-123'].map(ex => (
             <button
               key={ex}
-              className="quick-chip"
+              className="text-sm px-4 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-full cursor-pointer transition-colors font-medium"
               onClick={() => setInputVal(ex)}
-            >{ex}</button>
+            >
+              {ex}
+            </button>
           ))}
         </div>
       </div>
 
       {/* Error State */}
       {error && (
-        <div className="tracking-error card">
-          <span className="error-icon">⚠️</span>
+        <div className="w-full max-w-2xl bg-red-50 border-l-4 border-red-500 text-red-700 p-5 rounded-r-xl shadow-sm flex items-start gap-4 mb-8">
+          <span className="text-2xl mt-0.5">⚠️</span>
           <div>
-            <strong>Paket tidak ditemukan</strong>
-            <p>{error}</p>
+            <strong className="block font-bold mb-1">Paket tidak ditemukan</strong>
+            <p className="text-red-600">{error}</p>
           </div>
         </div>
       )}
 
       {/* Loading Skeleton */}
       {loading && (
-        <div className="tracking-skeleton card">
-          <div className="skeleton-header">
-            <div className="skeleton-block w-40" />
-            <div className="skeleton-block w-24" />
+        <div className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl p-6 shadow-sm mb-8 animate-pulse">
+          <div className="mb-8">
+            <div className="h-6 bg-slate-200 rounded w-40 mb-3"></div>
+            <div className="h-4 bg-slate-100 rounded w-24"></div>
           </div>
-          <div className="skeleton-timeline">
+          <div className="space-y-6">
             {[1, 2, 3].map(i => (
-              <div key={i} className="skeleton-event">
-                <div className="skeleton-dot" />
-                <div className="skeleton-lines">
-                  <div className="skeleton-block w-60" />
-                  <div className="skeleton-block w-40" />
+              <div key={i} className="flex gap-4">
+                <div className="w-4 h-4 rounded-full bg-slate-200 mt-1"></div>
+                <div className="flex-1 space-y-3">
+                  <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                  <div className="h-3 bg-slate-100 rounded w-1/2"></div>
                 </div>
               </div>
             ))}
@@ -181,14 +197,16 @@ export default function TrackingPage() {
         </div>
       )}
 
-      {/* Result */}
-      {data && !loading && <TrackingResult awb={awb} data={data} />}
+      {/* Result Container */}
+      <div className="w-full max-w-2xl">
+        {data && !loading && <TrackingResult awb={awb} data={data} />}
+      </div>
 
       {/* Empty State */}
       {!data && !loading && !error && (
-        <div className="tracking-empty">
-          <div className="tracking-illustration">
-            <svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div className="w-full max-w-2xl flex flex-col items-center justify-center py-10 px-4">
+          <div className="w-56 h-auto mb-8">
+            <svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
               {/* Road */}
               <rect x="20" y="130" width="160" height="20" rx="4" fill="#f1f5f9"/>
               <rect x="90" y="135" width="20" height="5" rx="2" fill="#e2e8f0"/>
@@ -222,10 +240,13 @@ export default function TrackingPage() {
               <circle cx="185" cy="100" r="2" fill="#64965a" opacity="0.4"/>
             </svg>
           </div>
-          <h3>Lacak pengiriman Anda</h3>
-          <p>Masukkan nomor resi di atas untuk melihat perjalanan paket secara real-time</p>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">Lacak pengiriman Anda</h3>
+          <p className="text-slate-500 text-center max-w-md">
+            Masukkan nomor resi di atas untuk melihat perjalanan paket secara real-time
+          </p>
         </div>
       )}
+
     </div>
   );
 }

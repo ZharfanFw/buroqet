@@ -87,26 +87,31 @@
 }
 
 /* ── Progress Stepper ── */
+/* ── Progress Stepper ── */
 .progress-stepper {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between; /* Pastikan jarak antar step merata */
   padding: 20px 24px;
   overflow-x: auto;
 }
 
 .step {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: column; /* Mengubah orientasi jadi atas-bawah */
+  align-items: center;    /* KUNCI: Menengahkan circle dan label secara horizontal */
+  justify-content: flex-start;
   flex: 1;
-  min-width: 70px;
+  min-width: 80px;        /* Sedikit dilebarkan agar teks label punya ruang bernapas */
 }
 
 .step-icon-wrap {
   display: flex;
   align-items: center;
+  justify-content: center; /* KUNCI: Menengahkan circle di dalam wrapper-nya */
   width: 100%;
   margin-bottom: 8px;
+  margin-left: 73%;
 }
 
 .step-circle {
@@ -122,10 +127,12 @@
   flex-shrink: 0;
   transition: var(--transition);
   color: var(--text-muted);
+  z-index: 2; /* Biar circle selalu di atas garis kalau tumpang tindih */
 }
 
 .step.done .step-circle {
   color: white;
+  /* Jika ada warna spesifik saat done, tambahkan di sini (misal: background: var(--success)) */
 }
 
 .step.current .step-circle {
@@ -138,18 +145,22 @@
   height: 3px;
   background: var(--border);
   transition: background 0.4s ease;
-  margin: 0 2px;
+  margin: 0 4px; /* Memberi sedikit jarak antara garis dan circle */
 }
 
 .step-label {
   font-size: 11px;
   color: var(--text-muted);
-  text-align: center;
+  text-align: center;      /* KUNCI: Memastikan teks rata tengah */
   font-weight: 500;
+  width: 100%;
+  line-height: 1.4;
+  word-wrap: break-word;   /* Kalau teks kepanjangan otomatis turun ke bawah, tetap center */
 }
 
 .current-label {
   font-weight: 700;
+  color: var(--text-primary); /* Opsional: Biar label step yg aktif lebih tebal dan jelas */
 }
 
 /* ── Map Card ── */
