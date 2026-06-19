@@ -38,5 +38,5 @@ func TestLogin_UserNotFound(t *testing.T) {
 
 	// Assert
 	assert.Error(t, err)
-	assert.Equal(t, "user tidak ditemukan", err.Error())
+	assert.Equal(t, "email atau password salah", err.Error())
 }
