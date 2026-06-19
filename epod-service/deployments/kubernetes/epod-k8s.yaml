@@ -30,11 +30,16 @@ spec:
           ports:
             - containerPort: 8080
           env:
-            - name: KAFKA_BROKER
+            - name: KAFKA_BROKERS
               valueFrom:
                 configMapKeyRef:
                   name: epod-config
                   key: kafka_broker
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: epod-secret
+                  key: database_url
             - name: APP_PORT
               value: "8080"
             # Storage path untuk foto ePOD (di dalam container)
@@ -84,14 +89,3 @@ spec:
       port: 8086
       targetPort: 8080
   type: ClusterIP
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: epod-config
-  namespace: buroqet
-  labels:
-    app: epod-service
-data:
-  kafka_broker: "GANTI_DENGAN_UPSTASH_KAFKA_BROKER"
-  app_port: "8080"

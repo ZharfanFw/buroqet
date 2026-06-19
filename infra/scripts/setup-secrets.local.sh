@@ -110,6 +110,23 @@ kubectl create secret generic order-secret \
   --dry-run=client -o yaml | kubectl apply -f -
 echo "✅ order-secret"
 
+echo ""
+echo "📌 Update Secret epod..."
+POSTGRES_EPOD_URL="postgresql://$POSTGRES_AUTH_USER:$POSTGRES_AUTH_PASSWORD@$POSTGRES_AUTH_HOST:5432/$POSTGRES_AUTH_DB?sslmode=require&search_path=epod"
+kubectl create secret generic epod-secret \
+  --namespace="$NAMESPACE" \
+  --from-literal=database_url="$POSTGRES_EPOD_URL" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ epod-secret"
+
+echo ""
+echo "📌 Update ConfigMap epod..."
+kubectl create configmap epod-config \
+  --namespace="$NAMESPACE" \
+  --from-literal=kafka_broker="$KAFKA_BROKER" \
+  --from-literal=app_port="8080" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ epod-config"
 
 echo ""
 echo "═══════════════════════════════════════"
