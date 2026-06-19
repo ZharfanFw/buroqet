@@ -2,7 +2,7 @@
 # Buroqet — Root Makefile
 # ================================================================
 
-.PHONY: help dev dev-infra build test clean frontend
+.PHONY: help dev dev-infra build test clean frontend port-forward stop-port-forward
 
 # Default: show help
 help:
@@ -13,6 +13,8 @@ help:
 	@echo "    make dev-infra    Start infra only (postgres, mongo, redis, kafka)"
 	@echo "    make frontend     Start React frontend dev server"
 	@echo "    make dev          Start full stack (docker compose)"
+	@echo "    make port-forward Start port-forwarding to Kubernetes services"
+	@echo "    make stop-port-forward Stop port-forwarding"
 	@echo ""
 	@echo "  Build:"
 	@echo "    make build        Build semua Docker images"
@@ -39,6 +41,24 @@ dev-infra:
 # ─── Frontend Dev Server ─────────────────────────────────────
 frontend:
 	cd frontend && npm run dev
+
+# ─── Port Forwarding ─────────────────────────────────────────
+port-forward:
+	@echo "🔌 Starting port-forwarding for all services in namespace 'buroqet'..."
+	@kubectl port-forward -n buroqet svc/auth-service 8080:8080 > /dev/null 2>&1 &
+	@kubectl port-forward -n buroqet svc/tracking-service 8081:80 > /dev/null 2>&1 &
+	@kubectl port-forward -n buroqet svc/order-management-service 8082:8082 > /dev/null 2>&1 &
+	@kubectl port-forward -n buroqet svc/dispatch-fleet-service 8083:8083 > /dev/null 2>&1 &
+	@kubectl port-forward -n buroqet svc/pricing-service 8084:8084 > /dev/null 2>&1 &
+	@kubectl port-forward -n buroqet svc/settlement-service 8085:8085 > /dev/null 2>&1 &
+	@kubectl port-forward -n buroqet svc/epod-service 8086:8086 > /dev/null 2>&1 &
+	@kubectl port-forward -n buroqet svc/warehouse-service 8087:8087 > /dev/null 2>&1 &
+	@echo "✅ All port-forwards started in background."
+	@echo "   Use 'make stop-port-forward' to stop them."
+
+stop-port-forward:
+	@echo "🛑 Stopping all kubectl port-forward processes..."
+	@pkill -f "kubectl port-forward" || echo "No port-forward processes found."
 
 # ─── Full Stack ──────────────────────────────────────────────
 dev:
