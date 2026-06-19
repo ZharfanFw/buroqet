@@ -1,0 +1,90 @@
+# ============================================================
+# Go Binaries
+# ============================================================
+# Binary output dari build lokal / Jenkins
+**/bin/
+**/dist/
+
+# Binary Go yang di-build langsung
+/auth-service/auth-service
+/tracking-service/tracking-service
+/order-management-service/order-management-service
+/dispatch-fleet-service/dispatch-fleet-service
+/pricing-service/pricing-service
+/settlement-service/settlement-service
+/epod-service/epod-service
+/warehouse-service/warehouse-service
+
+# Binary "main" hasil go build yang salah tempat
+**/main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# ============================================================
+# Go Test & Coverage
+# ============================================================
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# ============================================================
+# Frontend (Node / Vite / React)
+# ============================================================
+frontend/node_modules/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/dist/
+frontend/.vite/
+
+# ============================================================
+# Environment Variables (jangan sampai bocor ke Git!)
+# ============================================================
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# ============================================================
+# Docker
+# ============================================================
+**/docker-compose.override.yml
+
+# ============================================================
+# OS Metadata
+# ============================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ============================================================
+# IDE & Editor
+# ============================================================
+.vscode/
+.idea/
+*.iml
+*.iws
+
+# ============================================================
+# Log Files
+# ============================================================
+*.log
+logs/
+
+# ============================================================
+# Kubernetes Secrets (JANGAN COMMIT!)
+# ============================================================
+# File secret yang sudah diisi nilai aslinya
+**/kubernetes/secret.yaml
+**/kubernetes/*-secret.yaml
+# Script yang berisi credential (sudah diisi)
+infra/scripts/setup-secrets.sh
+# kubeconfig lokal
+kubeconfig
+*.kubeconfig

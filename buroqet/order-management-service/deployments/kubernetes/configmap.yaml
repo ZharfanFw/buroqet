@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-config
+  namespace: buroqet
+  labels:
+    app: order-management-service
+data:
+  kafka_broker: "kafka.buroqet.svc.cluster.local:9092"
+  app_port: "8080"
+  pricing_service_url: "http://pricing-service:8084"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: order-secret
+  namespace: buroqet
+  labels:
+    app: order-management-service
+type: Opaque
+# ⚠️ FILE INI JANGAN DI-COMMIT dengan nilai asli
+# DATABASE_URL format: host=<host> user=<user> password=<pass> dbname=order_db port=5432 sslmode=require
+stringData:
+  database_url: "postgresql://postgres.gvmknmaybejslbghzsov:PASSWORD_SUPABASE_ANDA@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&search_path=oms"

@@ -1,0 +1,111 @@
+pipeline {
+    agent any
+
+    environment {
+        SERVICE_DIR       = 'warehouse-service'
+        DOCKER_HUB_USER   = 'madeu30'
+        DOCKER_HUB_ID     = 'dockerhub-login'
+        IMAGE_NAME        = 'warehouse-service'
+    }
+
+    stages {
+
+        stage('Checkout Repository') {
+            steps {
+                echo '=== Checkout: logistics-system ==='
+                checkout scm
+            }
+        }
+
+        stage('Unit Test') {
+            steps {
+                echo '=== Unit Test: Warehouse Service ==='
+                dir("${SERVICE_DIR}") {
+                    bat 'go mod tidy'
+                    bat 'go test -v -count=1 ./internal/...'
+                }
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                echo '=== Lint: Warehouse Service ==='
+                dir("${SERVICE_DIR}") {
+                    bat 'go vet ./...'
+                }
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                echo '=== Build Docker Image: Warehouse Service ==='
+                dir("${SERVICE_DIR}") {
+                    withCredentials([usernamePassword(
+                        credentialsId: "${DOCKER_HUB_ID}",
+                        passwordVariable: 'DOCKER_PASS',
+                        usernameVariable: 'DOCKER_USER'
+                    )]) {
+                        bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                        bat "docker build -t %DOCKER_HUB_USER%/${IMAGE_NAME}:latest -f deployments/Dockerfile ."
+                    }
+                }
+            }
+        }
+
+        stage('Functional Test') {
+            steps {
+                echo '=== Functional Test: Warehouse Service ==='
+                dir("${SERVICE_DIR}") {
+                    bat 'docker-compose -f deployments/docker-compose.test.yml up -d'
+                    bat 'ping -n 16 127.0.0.1'
+                    bat 'set TEST_DATABASE_URL=host=localhost user=testuser password=testpass dbname=wms_test port=5433 sslmode=disable && go test -v -tags=functional -count=1 ./tests/functional/...'
+                }
+            }
+            post {
+                always {
+                    dir("${SERVICE_DIR}") {
+                        bat 'docker-compose -f deployments/docker-compose.test.yml down -v'
+                    }
+                }
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                echo '=== Push Image: Warehouse Service ==='
+                withCredentials([usernamePassword(
+                    credentialsId: "${DOCKER_HUB_ID}",
+                    passwordVariable: 'DOCKER_PASS',
+                    usernameVariable: 'DOCKER_USER'
+                )]) {
+                    bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
+                    bat "docker push %DOCKER_HUB_USER%/${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo '=== Deploy Warehouse Service ke Kubernetes ==='
+                bat "kubectl --kubeconfig=C:\\Users\\Lenovo\\.kube\\config apply -f ${SERVICE_DIR}/deployments/kubernetes/"
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo '=== Verifikasi Deployment Warehouse ==='
+                bat "kubectl --kubeconfig=C:\\Users\\Lenovo\\.kube\\config get pods -l app=warehouse-service"
+                bat "kubectl --kubeconfig=C:\\Users\\Lenovo\\.kube\\config get svc -l app=warehouse-service"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline Warehouse Service berhasil.'
+        }
+        failure {
+            echo 'Pipeline Warehouse Service gagal. Periksa log unit/functional test.'
+        }
+    }
+}
