@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  db-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: auth_db_test
+    ports:
+      - "5433:5432" # Pakai port berbeda dari DB utama (5432)

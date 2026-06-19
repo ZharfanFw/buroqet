@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracking-service
+  namespace: buroqet
+  labels:
+    app: tracking-service
+    version: "1.0"
+spec:
+  # 2 replika cukup untuk HA di cluster kecil (hemat kredit Azure for Students)
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tracking-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: tracking-service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      # Pull dari ghcr.io (gratis, tidak perlu imagePullSecrets untuk public repo)
+      # Jika repo private, tambahkan imagePullSecrets
+      containers:
+        - name: tracking-service
+          # GANTI <your-github-username> dengan username GitHub org kalian
+          image: ghcr.io/zharfanfw/tracking-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: tracking-secret
+                  key: mongo_uri
+            - name: MONGO_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: tracking-config
+                  key: mongo_db
+            - name: REDIS_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: tracking-config
+                  key: redis_addr
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: tracking-secret
+                  key: redis_password
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: tracking-config
+                  key: kafka_broker
+            - name: KAFKA_GROUP_ID
+              value: "tracking-service-consumer"
+            - name: APP_PORT
+              value: "8080"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 3

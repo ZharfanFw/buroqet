@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  db-test:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: dispatch-db-test
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=dispatch_db
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d dispatch_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
