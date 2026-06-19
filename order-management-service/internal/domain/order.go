@@ -70,6 +70,8 @@ type Order struct {
 	TotalCost            float64     `gorm:"column:total_cost" json:"total_cost"`
 	UseInsurance         bool        `gorm:"column:use_insurance" json:"use_insurance"`
 	PaymentType          PaymentType `gorm:"column:payment_type" json:"payment_type"`
+	PaymentProvider      string      `gorm:"column:payment_provider" json:"payment_provider"`
+	PaymentCode          string      `gorm:"column:payment_code" json:"payment_code"`
 	IsCod                bool        `gorm:"column:is_cod;->;-<-" json:"is_cod"` // GENERATED ALWAYS: (payment_type = 'COD')
 	RouteID              *uuid.UUID  `gorm:"type:uuid;column:route_id" json:"route_id"`
 	PaymentRef           string      `gorm:"column:payment_ref" json:"payment_ref"`
@@ -113,19 +115,22 @@ type CreateOrderRequest struct {
 	Height       float64 `json:"height" binding:"required,gt=0"`
 
 	// Service
-	ServiceType ServiceType `json:"service_type" binding:"required,oneof=REG EXP CARGO"`
-	PaymentType PaymentType `json:"payment_type" binding:"required,oneof=COD TRANSFER EWALLET VA"`
-	UseInsurance bool       `json:"use_insurance"`
+	ServiceType     ServiceType `json:"service_type" binding:"required,oneof=REG EXP CARGO"`
+	PaymentType     PaymentType `json:"payment_type" binding:"required,oneof=COD TRANSFER EWALLET VA"`
+	PaymentProvider string      `json:"payment_provider"`
+	UseInsurance    bool        `json:"use_insurance"`
 }
 
 // CreateOrderResponse is returned after successful order creation
 type CreateOrderResponse struct {
-	OrderID       string      `json:"order_id"`
-	AWBNumber     string      `json:"awb_number"`
-	PaymentRef    string      `json:"payment_ref"`
-	Status        OrderStatus `json:"status"`
-	TotalCost     float64     `json:"total_cost"`
-	PaymentURL    string      `json:"payment_url,omitempty"`
+	OrderID         string      `json:"order_id"`
+	AWBNumber       string      `json:"awb_number"`
+	PaymentRef      string      `json:"payment_ref"`
+	Status          OrderStatus `json:"status"`
+	TotalCost       float64     `json:"total_cost"`
+	PaymentURL      string      `json:"payment_url,omitempty"`
+	PaymentProvider string      `json:"payment_provider,omitempty"`
+	PaymentCode     string      `json:"payment_code,omitempty"`
 }
 
 // ListOrdersRequest holds query params for paginated order listing.

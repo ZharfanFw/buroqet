@@ -32,6 +32,8 @@ interface BackendOrder {
   total_cost: number;
   use_insurance: boolean;
   payment_type: 'COD' | 'TRANSFER' | 'EWALLET' | 'VA';
+  payment_provider?: string;
+  payment_code?: string;
   payment_ref?: string;
   status: string;
   notes?: string;
@@ -86,6 +88,7 @@ export default function OrderPage() {
     height: 10,
     service_type: 'REG',
     payment_type: 'COD',
+    payment_provider: '',
     use_insurance: false
   });
 
@@ -166,6 +169,7 @@ export default function OrderPage() {
           height: 10,
           service_type: 'REG',
           payment_type: 'COD',
+          payment_provider: '',
           use_insurance: false
         });
         fetchOrders();
@@ -196,6 +200,27 @@ export default function OrderPage() {
     } catch (err: any) {
       console.error(err);
       setActionError(err.response?.data?.error || 'Gagal memperbarui status.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePayNow = async () => {
+    if (!selectedOrder) return;
+    setActionLoading(true);
+    setActionError('');
+    try {
+      const response = await apiClient.patch(API_ENDPOINTS.order.status(selectedOrder.awb_number), {
+        status: 'PAYMENT_CONFIRMED',
+        notes: `Pembayaran berhasil via simulasi checkout (${selectedOrder.payment_type} - ${selectedOrder.payment_provider || 'BCA'})`
+      });
+      if (response.data && response.data.success) {
+        setSelectedOrder(response.data.data);
+        fetchOrders();
+      }
+    } catch (err: any) {
+      console.error(err);
+      setActionError(err.response?.data?.error || 'Gagal memproses pembayaran.');
     } finally {
       setActionLoading(false);
     }
@@ -511,7 +536,10 @@ export default function OrderPage() {
                     <select 
                       className="input" 
                       value={form.payment_type}
-                      onChange={e => setForm({...form, payment_type: e.target.value})}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setForm({...form, payment_type: val, payment_provider: val === 'COD' ? '' : ''});
+                      }}
                     >
                       <option value="COD">COD</option>
                       <option value="TRANSFER">Transfer Bank</option>
@@ -520,6 +548,36 @@ export default function OrderPage() {
                     </select>
                   </div>
                 </div>
+
+                {form.payment_type !== 'COD' && (
+                  <div style={{ marginTop: '12px' }}>
+                    <label style={labelStyle}>Penyedia Pembayaran (Bank / E-Wallet) *</label>
+                    <select 
+                      className="input" 
+                      required
+                      value={form.payment_provider}
+                      onChange={e => setForm({...form, payment_provider: e.target.value})}
+                    >
+                      <option value="">-- Pilih Bank / E-Wallet --</option>
+                      {(form.payment_type === 'TRANSFER' || form.payment_type === 'VA') && (
+                        <>
+                          <option value="BCA">BCA</option>
+                          <option value="MANDIRI">Mandiri</option>
+                          <option value="BNI">BNI</option>
+                          <option value="BRI">BRI</option>
+                        </>
+                      )}
+                      {form.payment_type === 'EWALLET' && (
+                        <>
+                          <option value="GOPAY">GoPay</option>
+                          <option value="OVO">OVO</option>
+                          <option value="DANA">Dana</option>
+                          <option value="LINKAJA">LinkAja</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                )}
 
                 <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input 
@@ -601,8 +659,21 @@ export default function OrderPage() {
                   </div>
                   <div>
                     <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Metode Bayar</span>
-                    <p style={{ fontWeight: 600, fontSize: '13px' }}>{selectedOrder.payment_type} {selectedOrder.use_insurance && '(Insured)'}</p>
+                    <p style={{ fontWeight: 600, fontSize: '13px' }}>
+                      {selectedOrder.payment_type === 'COD' 
+                        ? 'COD' 
+                        : `${selectedOrder.payment_type} (${selectedOrder.payment_provider || '-'})`}
+                      {selectedOrder.use_insurance && ' (Insured)'}
+                    </p>
                   </div>
+                  {selectedOrder.payment_type !== 'COD' && (
+                    <div>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Nomor Rekening / VA</span>
+                      <p style={{ fontWeight: 600, fontSize: '13px' }}>
+                        <code>{selectedOrder.payment_code || '-'}</code>
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>ID Transaksi / Ref</span>
                     <p style={{ fontWeight: 500, fontSize: '12px' }}>{selectedOrder.payment_ref || '-'}</p>
@@ -628,6 +699,39 @@ export default function OrderPage() {
                   </div>
                 </div>
               </div>
+
+              {selectedOrder.payment_type !== 'COD' && selectedOrder.status === 'PAYMENT_PENDING' && (
+                <div style={{ ...sectionStyle, border: '1px solid var(--primary)', background: 'rgba(121,174,111,0.08)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <h4 style={{ ...sectionTitleStyle, color: 'var(--primary-dark)', marginBottom: '4px' }}>💳 Instruksi Pembayaran</h4>
+                  <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600 }}>
+                        {selectedOrder.payment_type === 'VA' ? 'Nomor Virtual Account' : selectedOrder.payment_type === 'TRANSFER' ? 'Nomor Rekening Tujuan' : 'Nomor HP E-Wallet / Merchant ID'}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+                        <code style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '1px', background: 'var(--bg-hover)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', color: 'var(--primary-dark)' }}>
+                          {selectedOrder.payment_code}
+                        </code>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          ({selectedOrder.payment_provider})
+                        </span>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Silakan transfer sebesar <strong style={{ color: 'var(--primary-dark)', fontSize: '14px' }}>Rp {selectedOrder.total_cost.toLocaleString()}</strong> ke {selectedOrder.payment_type === 'VA' ? 'Virtual Account' : selectedOrder.payment_type === 'TRANSFER' ? 'Nomor Rekening' : 'E-Wallet'} di atas untuk memproses pesanan Anda.
+                    </p>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      onClick={handlePayNow}
+                      style={{ marginTop: '4px', alignSelf: 'flex-start', padding: '8px 16px', borderRadius: '6px', fontSize: '12.5px', fontWeight: 600 }}
+                      disabled={actionLoading}
+                    >
+                      ✔️ Bayar Sekarang (Simulasi)
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* ADMIN CONTROL SECTION FOR TESTING TRANSITIONS */}
               <div style={{ ...sectionStyle, border: '1px solid var(--primary-light)', background: 'rgba(121,174,111,0.05)' }}>

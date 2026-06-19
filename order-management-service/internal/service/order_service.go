@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"order-management-service/internal/domain"
@@ -86,9 +87,23 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 	awbNumber := generateAWB()
 	paymentRef := uuid.New().String()
 
-	// --- Step 4: Determine payment URL (only for NON-COD orders) ---
+	// --- Step 4: Determine payment details & URL (only for NON-COD orders) ---
 	paymentURL := ""
+	paymentProvider := string(req.PaymentType)
+	paymentCode := ""
+	status := domain.StatusOrderCreated
+
 	if req.PaymentType != domain.PaymentCOD {
+		paymentProvider = req.PaymentProvider
+		if paymentProvider == "" {
+			if req.PaymentType == domain.PaymentEwallet {
+				paymentProvider = "GOPAY"
+			} else {
+				paymentProvider = "BCA" // Default for TRANSFER and VA
+			}
+		}
+		paymentCode = generatePaymentCode(req.PaymentType, paymentProvider, paymentRef)
+		status = domain.StatusPaymentPending
 		// In a real system this would call Payment Gateway (Midtrans/Xendit).
 		// Here we construct a placeholder URL; the actual integration is out of scope for OMS.
 		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", paymentRef)
@@ -136,10 +151,12 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 		TotalCost:          pricingResp.TotalPrice,
 		UseInsurance:       req.UseInsurance,
 		PaymentType:        req.PaymentType,
+		PaymentProvider:    paymentProvider,
+		PaymentCode:        paymentCode,
 		IsCod:              req.PaymentType == domain.PaymentCOD,
 		RouteID:            nil,
 		PaymentRef:         paymentRef,
-		Status:             domain.StatusOrderCreated,
+		Status:             status,
 		Notes:              "",
 		OriginCity:         req.OriginCity,
 		DestCity:           req.DestCity,
@@ -174,12 +191,14 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 	}
 
 	return &domain.CreateOrderResponse{
-		OrderID:       orderID.String(),
-		AWBNumber:     awbNumber,
-		PaymentRef:    paymentRef,
-		Status:        domain.StatusOrderCreated,
-		TotalCost:     pricingResp.TotalPrice,
-		PaymentURL:    paymentURL,
+		OrderID:         orderID.String(),
+		AWBNumber:       awbNumber,
+		PaymentRef:      paymentRef,
+		Status:          status,
+		TotalCost:       pricingResp.TotalPrice,
+		PaymentURL:      paymentURL,
+		PaymentProvider: paymentProvider,
+		PaymentCode:     paymentCode,
 	}, nil
 }
 
@@ -282,4 +301,64 @@ func generateAWB() string {
 	num := int(b[3])%900 + 100
 
 	return fmt.Sprintf("BQ-%d-%s-%03d", time.Now().Year(), code, num)
+}
+
+// generatePaymentCode generates a simulated Virtual Account, bank account, or phone number.
+func generatePaymentCode(paymentType domain.PaymentType, provider string, paymentRef string) string {
+	if paymentType == domain.PaymentCOD {
+		return ""
+	}
+
+	prov := strings.ToUpper(strings.TrimSpace(provider))
+	if prov == "" {
+		prov = "BCA"
+	}
+
+	// Create a stable numeric hash from paymentRef UUID
+	var hash uint64
+	for _, char := range paymentRef {
+		if char >= '0' && char <= '9' {
+			hash = hash*10 + uint64(char-'0')
+		} else if char >= 'a' && char <= 'f' {
+			hash = hash*10 + uint64(char-'a'+1)
+		}
+	}
+	numericSuffix := fmt.Sprintf("%011d", hash%100000000000)
+
+	switch paymentType {
+	case domain.PaymentVA:
+		prefix := "88001" // Default BCA
+		switch prov {
+		case "MANDIRI":
+			prefix = "88012"
+		case "BNI":
+			prefix = "88023"
+		case "BRI":
+			prefix = "88034"
+		}
+		return prefix + numericSuffix
+	case domain.PaymentTransfer:
+		accNum := "1234567890" // Default BCA
+		switch prov {
+		case "MANDIRI":
+			accNum = "9876543210"
+		case "BNI":
+			accNum = "1122334455"
+		case "BRI":
+			accNum = "5544332211"
+		}
+		return accNum
+	case domain.PaymentEwallet:
+		phoneNum := "081234567890" // Default GoPay
+		switch prov {
+		case "OVO":
+			phoneNum = "089876543210"
+		case "DANA":
+			phoneNum = "081122334455"
+		case "LINKAJA":
+			phoneNum = "085544332211"
+		}
+		return phoneNum
+	}
+	return ""
 }

@@ -54,8 +54,12 @@ func setupTestApp(t *testing.T) *testApp {
 		t.Fatalf("Gagal konek ke database test: %v", err)
 	}
 
-	// Only migrate and create generated columns if table does not exist
-	if !db.Migrator().HasTable(&domain.Order{}) {
+	// Only migrate and create generated columns if table does not exist.
+	// If it exists, manually ensure the new columns are present to avoid altering generated columns.
+	if db.Migrator().HasTable(&domain.Order{}) {
+		db.Exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_provider varchar(255) DEFAULT ''")
+		db.Exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_code varchar(255) DEFAULT ''")
+	} else {
 		require.NoError(t, db.AutoMigrate(&domain.Order{}))
 
 		// Recreate generated columns for the test PostgreSQL database
@@ -202,7 +206,7 @@ func TestFunctional_CreateOrder_PersistedToDatabase(t *testing.T) {
 	require.NoError(t, err, "Order must be persisted to the database")
 
 	assert.Equal(t, awb, order.AWBNumber)
-	assert.Equal(t, domain.StatusOrderCreated, order.Status)
+	assert.Equal(t, domain.StatusPaymentPending, order.Status)
 	assert.Equal(t, "Budi Santoso", order.SenderName)
 	assert.Equal(t, "Ani Rahayu", order.ReceiverName)
 	assert.Equal(t, domain.PaymentTransfer, order.PaymentType)
@@ -233,7 +237,7 @@ func TestFunctional_GetOrderByAWB_ReturnsPersistedData(t *testing.T) {
 
 	data := getResp["data"].(map[string]interface{})
 	assert.Equal(t, awb, data["awb_number"])
-	assert.Equal(t, string(domain.StatusOrderCreated), data["status"])
+	assert.Equal(t, string(domain.StatusPaymentPending), data["status"])
 	assert.Equal(t, "Budi Santoso", data["sender_name"])
 }
 
