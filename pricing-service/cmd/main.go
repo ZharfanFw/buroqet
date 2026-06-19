@@ -37,6 +37,7 @@ func main() {
 
 	// 5. Routing API
 	router.POST("/pricing/calculate", pricingHandler.CalculatePricing)
+	router.POST("/calculate", pricingHandler.CalculatePricing)
 
 	// 6. Jalankan server pada port 8080
 	// Port ini harus sama dengan EXPOSE di Dockerfile dan targetPort di K8s YAML
