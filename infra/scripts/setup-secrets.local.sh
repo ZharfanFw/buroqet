@@ -126,7 +126,50 @@ kubectl create configmap epod-config \
   --from-literal=kafka_broker="$KAFKA_BROKER" \
   --from-literal=app_port="8080" \
   --dry-run=client -o yaml | kubectl apply -f -
-echo "✅ epod-config"
+echo ""
+echo "📌 Update ConfigMap & Secret untuk Dispatch-Fleet Service..."
+kubectl create configmap dispatch-config \
+  --namespace="$NAMESPACE" \
+  --from-literal=db_host="$POSTGRES_AUTH_HOST" \
+  --from-literal=app_port="8081" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic dispatch-secret \
+  --namespace="$NAMESPACE" \
+  --from-literal=db_user="$POSTGRES_AUTH_USER" \
+  --from-literal=db_password="$POSTGRES_AUTH_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ dispatch config & secret"
+
+echo ""
+echo "📌 Update ConfigMap & Secret untuk Warehouse Service..."
+kubectl create configmap warehouse-config \
+  --namespace="$NAMESPACE" \
+  --from-literal=db_host="$POSTGRES_AUTH_HOST" \
+  --from-literal=db_name="$POSTGRES_AUTH_DB" \
+  --from-literal=kafka_broker="$KAFKA_BROKER" \
+  --from-literal=app_port="8087" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic warehouse-secret \
+  --namespace="$NAMESPACE" \
+  --from-literal=db_user="$POSTGRES_AUTH_USER" \
+  --from-literal=db_password="$POSTGRES_AUTH_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ warehouse config & secret"
+
+echo ""
+echo "📌 Update ConfigMap & Secret untuk Settlement Service..."
+kubectl create configmap settlement-config \
+  --namespace="$NAMESPACE" \
+  --from-literal=db_host="$POSTGRES_AUTH_HOST" \
+  --from-literal=kafka_broker="$KAFKA_BROKER" \
+  --from-literal=app_port="8085" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic settlement-secret \
+  --namespace="$NAMESPACE" \
+  --from-literal=db_user="$POSTGRES_AUTH_USER" \
+  --from-literal=db_password="$POSTGRES_AUTH_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ settlement config & secret"
 
 echo ""
 echo "═══════════════════════════════════════"

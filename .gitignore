@@ -85,6 +85,7 @@ logs/
 **/kubernetes/*-secret.yaml
 # Script yang berisi credential (sudah diisi)
 infra/scripts/setup-secrets.sh
+infra/scripts/setup-secrets.local.sh
 # kubeconfig lokal
 kubeconfig
 *.kubeconfig
