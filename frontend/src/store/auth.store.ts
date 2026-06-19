@@ -15,6 +15,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, role: string) => Promise<void>;
   logout: () => void;
   fetchMe: () => Promise<void>;
 }
@@ -33,8 +34,20 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
       set({ user: data.user, isAuthenticated: true, isLoading: false });
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Login gagal';
+      const msg = (err as any)?.response?.data?.error || (err as any)?.response?.data?.message || 'Login gagal';
       set({ error: msg, isLoading: false });
+    }
+  },
+
+  register: async (name, email, password, role) => {
+    set({ isLoading: true, error: null });
+    try {
+      await apiClient.post(API_ENDPOINTS.auth.register, { name, email, password, role });
+      set({ isLoading: false });
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.error || (err as any)?.response?.data?.message || 'Registrasi gagal';
+      set({ error: msg, isLoading: false });
+      throw new Error(msg); // throw error agar component bisa tangkap
     }
   },
 

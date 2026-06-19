@@ -7,6 +7,7 @@ import (
 	"auth-service/internal/service"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -15,54 +16,38 @@ import (
 )
 
 func main() {
-	// Ambil konfigurasi dari Environment Variables (disuntikkan oleh Kubernetes)
+	// Ambil konfigurasi dari Environment Variables
 	dbHost := os.Getenv("DB_HOST")
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 	dbPort := os.Getenv("DB_PORT")
 
-	// Fallback nilai default jika variabel environment tidak ditemukan (untuk run lokal)
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
-	if dbUser == "" {
-		dbUser = "postgres"
-	}
-	if dbPass == "" {
-		dbPass = "password"
-	}
-	if dbName == "" {
-		dbName = "auth_db"
-	}
-	if dbPort == "" {
-		dbPort = "5432"
-	}
+	if dbHost == "" { dbHost = "localhost" }
+	if dbUser == "" { dbUser = "postgres" }
+	if dbPass == "" { dbPass = "password" }
+	if dbName == "" { dbName = "buroqet" }
+	if dbPort == "" { dbPort = "5432" }
 
-	// Susun DSN secara dinamis
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		dbHost, dbUser, dbPass, dbName, dbPort)
 
-	// Inisialisasi koneksi Database
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Gagal koneksi database ke %s: %v", dbHost, err)
 	}
 
-	// Konfigurasi Connection Pool untuk optimasi RPS
 	sqlDB, _ := db.DB()
 	sqlDB.SetMaxIdleConns(20)
 	sqlDB.SetMaxOpenConns(100)
 
-	// Jalankan Auto Migrate untuk table User
+	// Auto Migrate untuk table User
 	db.AutoMigrate(&domain.User{})
 
-	// Setup Dependency Injection
 	userRepo := repository.NewUserPostgres(db)
 	authServ := service.NewAuthService(userRepo)
 	authHand := handler.NewAuthHandler(authServ)
 
-	// Inisialisasi Gin Router
 	r := gin.Default()
 
 	// CORS Middleware
@@ -80,14 +65,25 @@ func main() {
 		c.Next()
 	})
 
-	// Definisi Routes
-	authRoutes := r.Group("/auth")
+	// Liveness probe
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "UP", "service": "auth-service"})
+	})
+
+	// Definisi Routes sesuai project_context.md
+	authRoutes := r.Group("/api/v1/auth")
 	{
 		authRoutes.POST("/register", authHand.Register)
 		authRoutes.POST("/login", authHand.Login)
+		authRoutes.POST("/refresh", authHand.Refresh)
+		authRoutes.GET("/me", authHand.Me)
 	}
 
-	// Jalankan server pada port 8080
-	log.Printf("Starting server on %s:8080", dbHost)
-	r.Run(":8080")
+	appPort := os.Getenv("APP_PORT")
+	if appPort == "" {
+		appPort = "8080"
+	}
+
+	log.Printf("Starting auth-service server on port %s", appPort)
+	r.Run(":" + appPort)
 }

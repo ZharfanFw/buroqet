@@ -122,11 +122,9 @@ go run ./cmd/main.go
 
 #### Tracking Service (port 8081)
 ```bash
-cd tracking-service
-$env:MONGO_URI="mongodb://buroqet:buroqet123@localhost:27017"
+$env:MONGO_URI="mongodb+srv://zharfanfaz21_db_user:bsUIL2Yyewp5hfUj@buroqet-tracking.qdsmduw.mongodb.net/?appName=buroqet-tracking"
 $env:MONGO_DB="tracking_db"
-$env:REDIS_ADDR="localhost:6379"
-$env:REDIS_PASSWORD="buroqet123"
+$env:REDIS_ADDR="rediss://default:gQAAAAAAAfchAAIgcDEwOGNiOWUwNTA4NmU0MDJkOWI3YjAxYzk4NTE3ZjA0MA@distinct-dinosaur-128801.upstash.io:6379"
 $env:KAFKA_BROKER="localhost:9092"
 $env:APP_PORT="8081"
 go run ./cmd/main.go

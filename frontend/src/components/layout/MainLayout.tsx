@@ -31,15 +31,27 @@ export default function MainLayout() {
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span className="nav-label">{item.label}</span>
-            </NavLink>
+          {navItems
+            .filter((item) => {
+              if (!user) return false;
+              if (user.role === 'admin') return true; // admin sees all
+              if (user.role === 'pelanggan') {
+                return ['/tracking', '/orders', '/pricing'].includes(item.path);
+              }
+              if (user.role === 'kurir') {
+                return ['/tracking', '/epod', '/settlement'].includes(item.path);
+              }
+              return false;
+            })
+            .map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
+              </NavLink>
           ))}
         </nav>
 

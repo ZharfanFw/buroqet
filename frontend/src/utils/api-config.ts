@@ -4,11 +4,11 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export const API_ENDPOINTS = {
   auth: {
-    login: `${BASE_URL}/auth/login`,
-    register: `${BASE_URL}/auth/register`,
-    logout: `${BASE_URL}/auth/logout`,
-    me: `${BASE_URL}/auth/me`,
-    refresh: `${BASE_URL}/auth/refresh`,
+    login: `${BASE_URL}/v1/auth/login`,
+    register: `${BASE_URL}/v1/auth/register`,
+    logout: `${BASE_URL}/v1/auth/logout`,
+    me: `${BASE_URL}/v1/auth/me`,
+    refresh: `${BASE_URL}/v1/auth/refresh`,
   },
   tracking: {
     base: `${BASE_URL}/tracking`,

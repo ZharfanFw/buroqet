@@ -8,6 +8,7 @@ import AuthLayout from './components/layout/AuthLayout';
 
 // Pages - Auth
 import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
 
 // Pages - Services
 import TrackingPage from './pages/tracking/TrackingPage';
@@ -19,11 +20,15 @@ import EpodPage from './pages/epod/EpodPage';
 import WarehousePage from './pages/warehouse/WarehousePage';
 
 // Guard: redirect to login if not authenticated
-function PrivateRoute({ children }: { children: React.ReactNode }) {
-  // const { isAuthenticated } = useAuthStore();
-  // return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+function PrivateRoute({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) {
+  const { isAuthenticated, user, isLoading } = useAuthStore();
   
-  // Bypassed for UI testing
+  if (isLoading) return <div>Loading...</div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/tracking" replace />; // Fallback to a safe route
+  }
+  
   return <>{children}</>;
 }
 
@@ -42,6 +47,7 @@ function App() {
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
 
         {/* Public routes — accessible tanpa login */}
@@ -50,20 +56,20 @@ function App() {
         </Route>
 
         {/* Protected routes */}
-        <Route
-          element={
-            <PrivateRoute>
-              <MainLayout />
-            </PrivateRoute>
-          }
-        >
+        <Route element={<PrivateRoute><MainLayout /></PrivateRoute>}>
           <Route path="/" element={<Navigate to="/tracking" replace />} />
-          <Route path="/orders" element={<OrderPage />} />
-          <Route path="/dispatch" element={<DispatchPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/settlement" element={<SettlementPage />} />
-          <Route path="/epod" element={<EpodPage />} />
-          <Route path="/warehouse" element={<WarehousePage />} />
+          
+          {/* Accessible by pelanggan & admin */}
+          <Route path="/orders" element={<PrivateRoute allowedRoles={['admin', 'pelanggan']}><OrderPage /></PrivateRoute>} />
+          <Route path="/pricing" element={<PrivateRoute allowedRoles={['admin', 'pelanggan']}><PricingPage /></PrivateRoute>} />
+          
+          {/* Accessible by kurir & admin */}
+          <Route path="/epod" element={<PrivateRoute allowedRoles={['admin', 'kurir']}><EpodPage /></PrivateRoute>} />
+          <Route path="/settlement" element={<PrivateRoute allowedRoles={['admin', 'kurir']}><SettlementPage /></PrivateRoute>} />
+          
+          {/* Accessible by admin only */}
+          <Route path="/dispatch" element={<PrivateRoute allowedRoles={['admin']}><DispatchPage /></PrivateRoute>} />
+          <Route path="/warehouse" element={<PrivateRoute allowedRoles={['admin']}><WarehousePage /></PrivateRoute>} />
         </Route>
 
         {/* Fallback */}
