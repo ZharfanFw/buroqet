@@ -62,6 +62,9 @@ func main() {
 	epodHandler := handler.NewEPODHandler(epodService)
 
 	// 6. Routing API
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "UP"})
+	})
 	router.POST("/upload", epodHandler.Upload)
 	router.GET("/epod", epodHandler.List)
 	router.GET("/epod/:id", epodHandler.GetByID)
