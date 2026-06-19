@@ -125,16 +125,35 @@ func main() {
 	// POST /api/v1/tracking/events — Catat event tracking baru
 	mux.HandleFunc("/api/v1/tracking/events", h.RecordEvent)
 
-	// GET /api/v1/tracking/{awb}/history — Riwayat perjalanan paket
-	// GET /api/v1/tracking/{awb}/status  — Status terakhir paket
+	// GET /api/v1/tracking/{awb}/history — Riwayat perjalanan paket (akses langsung tanpa ingress)
+	// GET /api/v1/tracking/{awb}/status  — Status terakhir paket (akses langsung tanpa ingress)
 	mux.HandleFunc("/api/v1/tracking/", func(w http.ResponseWriter, r *http.Request) {
-		// Gunakan strings.HasSuffix — aman untuk semua panjang path
-		// Bug sebelumnya: [len-7:] tidak cocok untuk "/history" (8 char)
 		if strings.HasSuffix(r.URL.Path, "/history") {
 			h.GetTrackingHistory(w, r)
 		} else if strings.HasSuffix(r.URL.Path, "/status") {
 			h.GetCurrentStatus(w, r)
 		} else {
+			http.NotFound(w, r)
+		}
+	})
+
+	// Catch-all: handle paths AFTER ingress nginx strips /api/tracking prefix.
+	// Ingress rewrite-target: /$2 dari /api/tracking(/|$)(.*) → /{awb}/history atau /{awb}/status
+	// POST /events                → RecordEvent
+	// GET  /{awb}/history         → GetTrackingHistory
+	// GET  /{awb}/status          → GetCurrentStatus
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		switch {
+		case path == "/events" && r.Method == http.MethodPost:
+			h.RecordEvent(w, r)
+		case strings.HasSuffix(path, "/history"):
+			h.GetTrackingHistory(w, r)
+		case strings.HasSuffix(path, "/status"):
+			h.GetCurrentStatus(w, r)
+		case path == "/health" || path == "/ready":
+			h.HealthCheck(w, r)
+		default:
 			http.NotFound(w, r)
 		}
 	})
