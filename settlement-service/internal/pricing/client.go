@@ -48,9 +48,12 @@ func (p *pricingClient) GetCommissionRate(ctx context.Context, serviceType strin
 
 func (p *pricingClient) fallbackRate(serviceType string) float64 {
 	rates := map[string]float64{
-		"REGULER": 3500,
-		"EXPRESS": 5000,
+		"REGULER":  3500,
+		"REG":      3500,
+		"EXPRESS":  5000,
+		"EXP":      5000,
 		"SAME_DAY": 7500,
+		"ESD":      7500,
 	}
 	if rate, ok := rates[serviceType]; ok {
 		return rate
