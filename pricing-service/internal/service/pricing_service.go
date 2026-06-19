@@ -37,7 +37,7 @@ func (s *PricingService) CalculateTariff(
 	)
 
 	base := finalWeight * baseRate
-	insurance := 0.0
+	insurance := 1000000.0
 
 	if req.UseInsurance {
 		insurance = base * 0.02
