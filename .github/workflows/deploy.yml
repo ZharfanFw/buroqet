@@ -18,15 +18,15 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      tracking:  ${{ steps.filter.outputs.tracking }}
-      auth:      ${{ steps.filter.outputs.auth }}
-      order:     ${{ steps.filter.outputs.order }}
-      dispatch:  ${{ steps.filter.outputs.dispatch }}
-      pricing:   ${{ steps.filter.outputs.pricing }}
-      settlement: ${{ steps.filter.outputs.settlement }}
-      epod:      ${{ steps.filter.outputs.epod }}
-      warehouse:  ${{ steps.filter.outputs.warehouse }}
-      frontend:  ${{ steps.filter.outputs.frontend }}
+      tracking:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.tracking == 'true' }}
+      auth:      ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.auth }}
+      order:     ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.order }}
+      dispatch:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.dispatch }}
+      pricing:   ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.pricing }}
+      settlement: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.settlement }}
+      epod:      ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.epod }}
+      warehouse:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.warehouse }}
+      frontend:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
