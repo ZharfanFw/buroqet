@@ -18,15 +18,15 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      tracking:  ${{ steps.filter.outputs.tracking }}
-      auth:      ${{ steps.filter.outputs.auth }}
-      order:     ${{ steps.filter.outputs.order }}
-      dispatch:  ${{ steps.filter.outputs.dispatch }}
-      pricing:   ${{ steps.filter.outputs.pricing }}
-      settlement: ${{ steps.filter.outputs.settlement }}
-      epod:      ${{ steps.filter.outputs.epod }}
-      warehouse:  ${{ steps.filter.outputs.warehouse }}
-      frontend:  ${{ steps.filter.outputs.frontend }}
+      tracking:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.tracking == 'true' }}
+      auth:      ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.auth }}
+      order:     ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.order }}
+      dispatch:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.dispatch }}
+      pricing:   ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.pricing }}
+      settlement: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.settlement }}
+      epod:      ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.epod }}
+      warehouse:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.warehouse }}
+      frontend:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -146,7 +146,7 @@ jobs:
   # JOB 3: Deploy ke AKS
   # ─────────────────────────────────────────────────────────
   deploy:
-    needs: build-and-push
+    needs: [build-and-push, detect-changes]
     runs-on: ubuntu-latest
     environment: production   # butuh approval manual (opsional)
 
@@ -167,12 +167,39 @@ jobs:
 
       - name: Update image tags di manifest
         run: |
-          # Ganti :latest dengan SHA commit yang spesifik agar rollback mudah
           SHA="${{ github.sha }}"
           OWNER="${{ github.repository_owner }}"
           OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
-          find . -path "*/kubernetes/*.yaml" -not -path "*secret*" | xargs sed -i \
-            "s|ghcr.io/$OWNER_LC/\(.*\):latest|ghcr.io/$OWNER_LC/\1:$SHA|g"
+          
+          # Fungsi untuk update tag jika terdeteksi perubahan
+          update_tag() {
+            local service_name=$1
+            local changed=$2
+            if [ "$changed" = "true" ]; then
+              # Cari file yaml yang mendefinisikan deployment untuk service ini
+              local yaml_files=$(find "$service_name" -name "*.yaml" -o -name "*.yml" 2>/dev/null)
+              if [ -n "$yaml_files" ]; then
+                for f in $yaml_files; do
+                  if grep -q "kind: Deployment" "$f"; then
+                    echo "Updating tag to $SHA for $service_name in $f"
+                    sed -i "s|ghcr.io/$OWNER_LC/$service_name:latest|ghcr.io/$OWNER_LC/$service_name:$SHA|g" "$f"
+                  fi
+                done
+              fi
+            else
+              echo "Keeping tag :latest for $service_name"
+            fi
+          }
+          
+          update_tag "tracking-service" "${{ needs.detect-changes.outputs.tracking }}"
+          update_tag "auth-service" "${{ needs.detect-changes.outputs.auth }}"
+          update_tag "order-management-service" "${{ needs.detect-changes.outputs.order }}"
+          update_tag "dispatch-fleet-service" "${{ needs.detect-changes.outputs.dispatch }}"
+          update_tag "pricing-service" "${{ needs.detect-changes.outputs.pricing }}"
+          update_tag "settlement-service" "${{ needs.detect-changes.outputs.settlement }}"
+          update_tag "epod-service" "${{ needs.detect-changes.outputs.epod }}"
+          update_tag "warehouse-service" "${{ needs.detect-changes.outputs.warehouse }}"
+          update_tag "frontend" "${{ needs.detect-changes.outputs.frontend }}"
 
       - name: Deploy Namespace
         run: kubectl apply -f infra/kubernetes/namespace.yaml
@@ -223,13 +250,16 @@ jobs:
       - name: Deploy Ingress
         run: kubectl apply -f infra/kubernetes/ingress.yaml
 
-      - name: Get Ingress IP
+      - name: Get Ingress IP and Diagnostics
+        if: always()
         run: |
           echo "=== Ingress Controller Service ==="
           kubectl get svc -n ingress-nginx ingress-nginx-controller || true
           echo "=== Ingress Routing Rules ==="
-          kubectl get ingress -n buroqet
+          kubectl get ingress -n buroqet || true
           echo "=== Pods in buroqet Namespace ==="
-          kubectl get pods -n buroqet
-          echo "=== Endpoints in buroqet Namespace ==="
-          kubectl get endpoints -n buroqet
+          kubectl get pods -n buroqet || true
+          echo "=== Describe Pods ==="
+          kubectl describe pods -n buroqet || true
+          echo "=== Tracking Service Logs ==="
+          kubectl logs -l app=tracking-service -n buroqet --tail=50 || true
