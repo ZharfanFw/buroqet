@@ -247,6 +247,11 @@ jobs:
           kubectl apply -f epod-service/deployments/kubernetes/epod-k8s.yaml -n buroqet
           kubectl rollout status deployment/epod-service -n buroqet --timeout=120s
 
+      - name: Deploy Pricing Service
+        run: |
+          kubectl apply -f pricing-service/deployments/kubernetes/pricing-k8s.yaml -n buroqet
+          kubectl rollout status deployment/pricing-service -n buroqet --timeout=120s
+
       - name: Install Nginx Ingress Controller
         run: |
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml

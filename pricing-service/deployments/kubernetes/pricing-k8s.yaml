@@ -24,7 +24,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: pricing-service
-          image: arpusauri/pricing-service:latest
+          image: ghcr.io/zharfanfw/pricing-service:latest
           ports:
             - containerPort: 8080
           # SUNTIKKAN TERSANGKA UTAMA KITA DI SINI
