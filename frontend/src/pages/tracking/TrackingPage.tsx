@@ -27,7 +27,6 @@ export default function TrackingPage() {
         setTimeout(() => {
           setData({
             awb: trimmed,
-
             total: 4,
             events: [
               {

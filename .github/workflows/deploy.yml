@@ -8,6 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+  OWNER_LC: ${{ github.repository_owner }}
 
 jobs:
   # ─────────────────────────────────────────────────────────
@@ -17,15 +18,15 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      tracking:  ${{ steps.filter.outputs.tracking }}
-      auth:      ${{ steps.filter.outputs.auth }}
-      order:     ${{ steps.filter.outputs.order }}
-      dispatch:  ${{ steps.filter.outputs.dispatch }}
-      pricing:   ${{ steps.filter.outputs.pricing }}
-      settlement: ${{ steps.filter.outputs.settlement }}
-      epod:      ${{ steps.filter.outputs.epod }}
-      warehouse:  ${{ steps.filter.outputs.warehouse }}
-      frontend:  ${{ steps.filter.outputs.frontend }}
+      tracking:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.tracking == 'true' }}
+      auth:      ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.auth }}
+      order:     ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.order }}
+      dispatch:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.dispatch }}
+      pricing:   ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.pricing }}
+      settlement: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.settlement }}
+      epod:      ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.epod }}
+      warehouse:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.warehouse }}
+      frontend:  ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -99,7 +100,7 @@ jobs:
             changed: ${{ needs.detect-changes.outputs.warehouse }}
           - service: frontend
             context: ./frontend
-            dockerfile: ./frontend/deployments/Dockerfile
+            dockerfile: ./frontend/Dockerfile
             changed: ${{ needs.detect-changes.outputs.frontend }}
 
     steps:
@@ -123,6 +124,11 @@ jobs:
         if: matrix.changed == 'true'
         uses: docker/setup-buildx-action@v3
 
+      - name: Compute lowercase owner
+        if: matrix.changed == 'true'
+        id: owner
+        run: echo "name=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Build & Push image
         if: matrix.changed == 'true'
         uses: docker/build-push-action@v5
@@ -131,8 +137,8 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:latest
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/${{ matrix.service }}:latest
+            ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -140,7 +146,7 @@ jobs:
   # JOB 3: Deploy ke AKS
   # ─────────────────────────────────────────────────────────
   deploy:
-    needs: build-and-push
+    needs: [build-and-push, detect-changes]
     runs-on: ubuntu-latest
     environment: production   # butuh approval manual (opsional)
 
@@ -161,40 +167,105 @@ jobs:
 
       - name: Update image tags di manifest
         run: |
-          # Ganti :latest dengan SHA commit yang spesifik agar rollback mudah
           SHA="${{ github.sha }}"
           OWNER="${{ github.repository_owner }}"
-          find . -path "*/kubernetes/*.yaml" -not -path "*secret*" | xargs sed -i \
-            "s|ghcr.io/$OWNER/\(.*\):latest|ghcr.io/$OWNER/\1:$SHA|g"
+          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          
+          # Fungsi untuk update tag jika terdeteksi perubahan
+          update_tag() {
+            local service_name=$1
+            local changed=$2
+            if [ "$changed" = "true" ]; then
+              # Cari file yaml yang mendefinisikan deployment untuk service ini
+              local yaml_files=$(find "$service_name" -name "*.yaml" -o -name "*.yml" 2>/dev/null)
+              if [ -n "$yaml_files" ]; then
+                for f in $yaml_files; do
+                  if grep -q "kind: Deployment" "$f"; then
+                    echo "Updating tag to $SHA for $service_name in $f"
+                    sed -i "s|ghcr.io/$OWNER_LC/$service_name:latest|ghcr.io/$OWNER_LC/$service_name:$SHA|g" "$f"
+                  fi
+                done
+              fi
+            else
+              echo "Keeping tag :latest for $service_name"
+            fi
+          }
+          
+          update_tag "tracking-service" "${{ needs.detect-changes.outputs.tracking }}"
+          update_tag "auth-service" "${{ needs.detect-changes.outputs.auth }}"
+          update_tag "order-management-service" "${{ needs.detect-changes.outputs.order }}"
+          update_tag "dispatch-fleet-service" "${{ needs.detect-changes.outputs.dispatch }}"
+          update_tag "pricing-service" "${{ needs.detect-changes.outputs.pricing }}"
+          update_tag "settlement-service" "${{ needs.detect-changes.outputs.settlement }}"
+          update_tag "epod-service" "${{ needs.detect-changes.outputs.epod }}"
+          update_tag "warehouse-service" "${{ needs.detect-changes.outputs.warehouse }}"
+          update_tag "frontend" "${{ needs.detect-changes.outputs.frontend }}"
 
       - name: Deploy Namespace
         run: kubectl apply -f infra/kubernetes/namespace.yaml
 
+      - name: Create GHCR Registry Secret
+        run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.repository_owner }} \
+            --docker-password="${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" \
+            --docker-email=github-actions@github.com \
+            --dry-run=client -o yaml | kubectl apply -n buroqet -f -
+
       - name: Deploy ConfigMaps
         run: |
-          find . -path "*/kubernetes/configmap.yaml" | xargs -I{} kubectl apply -f {} -n buroqet
+          echo "Skipping ConfigMap deployment in pipeline; configmaps and secrets are managed manually via infra/scripts/setup-secrets.sh to protect secrets and avoid overwriting production configuration."
+
 
       - name: Deploy Services
         run: |
           find . -path "*/kubernetes/service.yaml" | xargs -I{} kubectl apply -f {} -n buroqet
 
       - name: Deploy Tracking Service
-        if: needs.detect-changes.outputs.tracking == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           kubectl apply -f tracking-service/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/tracking-service -n buroqet --timeout=120s
 
       - name: Deploy Auth Service
-        if: needs.detect-changes.outputs.auth == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           kubectl apply -f auth-service/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/auth-service-deployment -n buroqet --timeout=120s
 
+      - name: Deploy Order Management Service
+        run: |
+          kubectl apply -f order-management-service/deployments/kubernetes/deployment.yaml -n buroqet
+          kubectl rollout status deployment/order-management-service -n buroqet --timeout=120s
+
       - name: Deploy Frontend
-        if: needs.detect-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           kubectl apply -f frontend/deployments/kubernetes/deployment.yaml -n buroqet
           kubectl rollout status deployment/frontend -n buroqet --timeout=120s
 
+      - name: Deploy ePOD Service
+        run: |
+          kubectl apply -f epod-service/deployments/kubernetes/epod-k8s.yaml -n buroqet
+          kubectl rollout status deployment/epod-service -n buroqet --timeout=120s
+
+      - name: Install Nginx Ingress Controller
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml
+          echo "Waiting for Ingress Controller to deploy..."
+          sleep 20
+
       - name: Deploy Ingress
         run: kubectl apply -f infra/kubernetes/ingress.yaml
+
+      - name: Get Ingress IP and Diagnostics
+        if: always()
+        run: |
+          echo "=== Ingress Controller Service ==="
+          kubectl get svc -n ingress-nginx ingress-nginx-controller || true
+          echo "=== Ingress Routing Rules ==="
+          kubectl get ingress -n buroqet || true
+          echo "=== Pods in buroqet Namespace ==="
+          kubectl get pods -n buroqet || true
+          echo "=== Describe Pods ==="
+          kubectl describe pods -n buroqet || true
+          echo "=== Tracking Service Logs ==="
+          kubectl logs -l app=tracking-service -n buroqet --tail=50 || true

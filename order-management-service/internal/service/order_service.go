@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"order-management-service/internal/domain"
@@ -24,6 +25,11 @@ type PricingClient interface {
 type OrderService interface {
 	CreateOrder(ctx context.Context, req domain.CreateOrderRequest) (*domain.CreateOrderResponse, error)
 	GetOrderByAWB(ctx context.Context, awbNumber string) (*domain.Order, error)
+	ListOrders(ctx context.Context, req domain.ListOrdersRequest) (*domain.ListOrdersResponse, error)
+	UpdateOrderStatus(ctx context.Context, awbNumber string, req domain.UpdateOrderStatusRequest) (*domain.Order, error)
+	GetOrderByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error)
+	GetOrdersByCustomerID(ctx context.Context, customerID string, page, limit int) (*domain.ListOrdersResponse, error)
+	CancelOrder(ctx context.Context, awbNumber string) (*domain.CancelOrderResponse, error)
 }
 
 // orderService is the concrete implementation.
@@ -81,9 +87,23 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 	awbNumber := generateAWB()
 	paymentRef := uuid.New().String()
 
-	// --- Step 4: Determine payment URL (only for NON-COD orders) ---
+	// --- Step 4: Determine payment details & URL (only for NON-COD orders) ---
 	paymentURL := ""
+	paymentProvider := string(req.PaymentType)
+	paymentCode := ""
+	status := domain.StatusOrderCreated
+
 	if req.PaymentType != domain.PaymentCOD {
+		paymentProvider = req.PaymentProvider
+		if paymentProvider == "" {
+			if req.PaymentType == domain.PaymentEwallet {
+				paymentProvider = "GOPAY"
+			} else {
+				paymentProvider = "BCA" // Default for TRANSFER and VA
+			}
+		}
+		paymentCode = generatePaymentCode(req.PaymentType, paymentProvider, paymentRef)
+		status = domain.StatusPaymentPending
 		// In a real system this would call Payment Gateway (Midtrans/Xendit).
 		// Here we construct a placeholder URL; the actual integration is out of scope for OMS.
 		paymentURL = fmt.Sprintf("https://pay.example.com/invoice/%s", paymentRef)
@@ -131,10 +151,12 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 		TotalCost:          pricingResp.TotalPrice,
 		UseInsurance:       req.UseInsurance,
 		PaymentType:        req.PaymentType,
+		PaymentProvider:    paymentProvider,
+		PaymentCode:        paymentCode,
 		IsCod:              req.PaymentType == domain.PaymentCOD,
 		RouteID:            nil,
 		PaymentRef:         paymentRef,
-		Status:             domain.StatusOrderCreated,
+		Status:             status,
 		Notes:              "",
 		OriginCity:         req.OriginCity,
 		DestCity:           req.DestCity,
@@ -169,12 +191,14 @@ func (s *orderService) CreateOrder(ctx context.Context, req domain.CreateOrderRe
 	}
 
 	return &domain.CreateOrderResponse{
-		OrderID:       orderID.String(),
-		AWBNumber:     awbNumber,
-		PaymentRef:    paymentRef,
-		Status:        domain.StatusOrderCreated,
-		TotalCost:     pricingResp.TotalPrice,
-		PaymentURL:    paymentURL,
+		OrderID:         orderID.String(),
+		AWBNumber:       awbNumber,
+		PaymentRef:      paymentRef,
+		Status:          status,
+		TotalCost:       pricingResp.TotalPrice,
+		PaymentURL:      paymentURL,
+		PaymentProvider: paymentProvider,
+		PaymentCode:     paymentCode,
 	}, nil
 }
 
@@ -185,6 +209,78 @@ func (s *orderService) GetOrderByAWB(ctx context.Context, awbNumber string) (*do
 		return nil, fmt.Errorf("order not found: %w", err)
 	}
 	return order, nil
+}
+
+// ListOrders returns a paginated list of orders, optionally filtered by status or customer.
+func (s *orderService) ListOrders(ctx context.Context, req domain.ListOrdersRequest) (*domain.ListOrdersResponse, error) {
+	result, err := s.repo.FindAll(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list orders: %w", err)
+	}
+	return result, nil
+}
+
+// UpdateOrderStatus validates the new status and persists it.
+// It rejects attempts to set an already-current status.
+func (s *orderService) UpdateOrderStatus(ctx context.Context, awbNumber string, req domain.UpdateOrderStatusRequest) (*domain.Order, error) {
+	order, err := s.repo.FindByAWB(ctx, awbNumber)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+
+	if order.Status == req.Status {
+		return nil, fmt.Errorf("order already has status %s", req.Status)
+	}
+
+	if err := s.repo.UpdateStatus(ctx, awbNumber, req.Status); err != nil {
+		return nil, fmt.Errorf("failed to update order status: %w", err)
+	}
+
+	order.Status = req.Status
+	if req.Notes != "" {
+		order.Notes = req.Notes
+	}
+	return order, nil
+}
+
+// GetOrderByTransactionID fetches an order by its payment reference / transaction ID.
+func (s *orderService) GetOrderByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error) {
+	order, err := s.repo.FindByTransactionID(ctx, transactionID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found for transaction %s: %w", transactionID, err)
+	}
+	return order, nil
+}
+
+// GetOrdersByCustomerID returns a paginated list of orders for a specific customer.
+func (s *orderService) GetOrdersByCustomerID(ctx context.Context, customerID string, page, limit int) (*domain.ListOrdersResponse, error) {
+	result, err := s.repo.FindByCustomerID(ctx, customerID, page, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders for customer %s: %w", customerID, err)
+	}
+	return result, nil
+}
+
+// CancelOrder deletes an order only if it has not been picked up yet.
+// Orders past ORDER_CREATED cannot be cancelled to prevent logistics disruption.
+func (s *orderService) CancelOrder(ctx context.Context, awbNumber string) (*domain.CancelOrderResponse, error) {
+	order, err := s.repo.FindByAWB(ctx, awbNumber)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+
+	if order.Status != domain.StatusOrderCreated {
+		return nil, fmt.Errorf("order %s cannot be cancelled: current status is %s (only ORDER_CREATED orders can be cancelled)", awbNumber, order.Status)
+	}
+
+	if err := s.repo.DeleteByAWB(ctx, awbNumber); err != nil {
+		return nil, fmt.Errorf("failed to cancel order: %w", err)
+	}
+
+	return &domain.CancelOrderResponse{
+		AWBNumber: awbNumber,
+		Message:   fmt.Sprintf("Order %s has been successfully cancelled", awbNumber),
+	}, nil
 }
 
 // generateAWB creates a unique AWB in the format "BQ-YYYY-XXX-NNN" sesuai spesifikasi Buroqet.
@@ -205,4 +301,64 @@ func generateAWB() string {
 	num := int(b[3])%900 + 100
 
 	return fmt.Sprintf("BQ-%d-%s-%03d", time.Now().Year(), code, num)
+}
+
+// generatePaymentCode generates a simulated Virtual Account, bank account, or phone number.
+func generatePaymentCode(paymentType domain.PaymentType, provider string, paymentRef string) string {
+	if paymentType == domain.PaymentCOD {
+		return ""
+	}
+
+	prov := strings.ToUpper(strings.TrimSpace(provider))
+	if prov == "" {
+		prov = "BCA"
+	}
+
+	// Create a stable numeric hash from paymentRef UUID
+	var hash uint64
+	for _, char := range paymentRef {
+		if char >= '0' && char <= '9' {
+			hash = hash*10 + uint64(char-'0')
+		} else if char >= 'a' && char <= 'f' {
+			hash = hash*10 + uint64(char-'a'+1)
+		}
+	}
+	numericSuffix := fmt.Sprintf("%011d", hash%100000000000)
+
+	switch paymentType {
+	case domain.PaymentVA:
+		prefix := "88001" // Default BCA
+		switch prov {
+		case "MANDIRI":
+			prefix = "88012"
+		case "BNI":
+			prefix = "88023"
+		case "BRI":
+			prefix = "88034"
+		}
+		return prefix + numericSuffix
+	case domain.PaymentTransfer:
+		accNum := "1234567890" // Default BCA
+		switch prov {
+		case "MANDIRI":
+			accNum = "9876543210"
+		case "BNI":
+			accNum = "1122334455"
+		case "BRI":
+			accNum = "5544332211"
+		}
+		return accNum
+	case domain.PaymentEwallet:
+		phoneNum := "081234567890" // Default GoPay
+		switch prov {
+		case "OVO":
+			phoneNum = "089876543210"
+		case "DANA":
+			phoneNum = "081122334455"
+		case "LINKAJA":
+			phoneNum = "085544332211"
+		}
+		return phoneNum
+	}
+	return ""
 }

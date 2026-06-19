@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import './LoginPage.css';
 
@@ -56,10 +56,6 @@ export default function LoginPage() {
       >
         {isLoading ? 'Masuk...' : 'Masuk'}
       </button>
-
-      <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-        Belum punya akun? <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 600 }}>Daftar di sini</Link>
-      </div>
     </form>
   );
 }

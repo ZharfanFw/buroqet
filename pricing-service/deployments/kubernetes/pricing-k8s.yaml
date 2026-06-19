@@ -20,91 +20,28 @@ spec:
       labels:
         app: pricing-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: pricing-service
-          # GANTI <your-github-username> dengan username GitHub org kalian
-          image: ghcr.io/zharfanfw/pricing-service:latest
-          imagePullPolicy: Always
+          image: arpusauri/pricing-service:latest
           ports:
-            - containerPort: 8081
+            - containerPort: 8080
+          # SUNTIKKAN TERSANGKA UTAMA KITA DI SINI
           env:
-            - name: DB_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: pricing-config
-                  key: db_host
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: pricing-secret
-                  key: db_user
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: pricing-secret
-                  key: db_password
-            - name: DB_NAME
-              value: "pricing_db"
-            - name: APP_PORT
-              value: "8081"
-          resources:
-            requests:
-              memory: "64Mi"
-              cpu: "50m"
-            limits:
-              memory: "128Mi"
-              cpu: "200m"
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8081
-            initialDelaySeconds: 15
-            periodSeconds: 20
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 8081
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            - name: DATABASE_URL
+              value: "postgresql://postgres.gvmknmaybejslbghzsov:HfuyrF1xd1iUVagY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?search_path=pricing_schema"
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: pricing-service
   namespace: buroqet
-  labels:
-    app: pricing-service
 spec:
   selector:
     app: pricing-service
   ports:
-    - protocol: TCP
-      port: 8084
-      targetPort: 8081
+    - port: 8084
+      targetPort: 8080
   type: ClusterIP
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: pricing-config
-  namespace: buroqet
-  labels:
-    app: pricing-service
-data:
-  db_host: "GANTI.neon.tech"
-  app_port: "8081"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: pricing-secret
-  namespace: buroqet
-  labels:
-    app: pricing-service
-type: Opaque
-# ⚠️ FILE INI JANGAN DI-COMMIT dengan nilai asli
-stringData:
-  db_user: "GANTI"
-  db_password: "GANTI"

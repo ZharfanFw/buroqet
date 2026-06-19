@@ -27,6 +27,8 @@ spec:
         app: warehouse-service
     
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: warehouse-service
           # GANTI <your-github-username> dengan username GitHub org kalian

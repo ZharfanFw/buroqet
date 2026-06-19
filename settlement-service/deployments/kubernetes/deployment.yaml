@@ -20,6 +20,8 @@ spec:
       labels:
         app: settlement-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: settlement-service
           # GANTI <your-github-username> dengan username GitHub org kalian

@@ -6,8 +6,10 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"tracking-service/internal/domain"
@@ -99,6 +101,13 @@ func ConnectRedis(addr string, password string, db int) (*redis.Client, error) {
 			Addr:     addr,
 			Password: password,
 			DB:       db,
+		}
+	}
+
+	// Enable TLS if domain belongs to Upstash but wasn't a URL
+	if strings.Contains(addr, "upstash.io") {
+		opt.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
 		}
 	}
 

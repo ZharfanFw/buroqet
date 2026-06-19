@@ -8,8 +8,7 @@ export interface PaginatedResponse<T> {
 }
 
 export interface ApiError {
-  message?: string;
-  error?: string;   // format Go backend: { "error": "pesan" }
+  message: string;
   code?: string;
 }
 

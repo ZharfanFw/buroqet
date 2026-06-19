@@ -64,6 +64,81 @@ func (mr *MockOrderServiceMockRecorder) GetOrderByAWB(ctx, awbNumber interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrderByAWB", reflect.TypeOf((*MockOrderService)(nil).GetOrderByAWB), ctx, awbNumber)
 }
 
+// ListOrders mocks base method
+func (m *MockOrderService) ListOrders(ctx context.Context, req model.ListOrdersRequest) (*model.ListOrdersResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListOrders", ctx, req)
+	ret0, _ := ret[0].(*model.ListOrdersResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListOrders indicates an expected call of ListOrders
+func (mr *MockOrderServiceMockRecorder) ListOrders(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOrders", reflect.TypeOf((*MockOrderService)(nil).ListOrders), ctx, req)
+}
+
+// UpdateOrderStatus mocks base method
+func (m *MockOrderService) UpdateOrderStatus(ctx context.Context, awbNumber string, req model.UpdateOrderStatusRequest) (*model.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateOrderStatus", ctx, awbNumber, req)
+	ret0, _ := ret[0].(*model.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateOrderStatus indicates an expected call of UpdateOrderStatus
+func (mr *MockOrderServiceMockRecorder) UpdateOrderStatus(ctx, awbNumber, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrderStatus", reflect.TypeOf((*MockOrderService)(nil).UpdateOrderStatus), ctx, awbNumber, req)
+}
+
+// GetOrderByTransactionID mocks base method
+func (m *MockOrderService) GetOrderByTransactionID(ctx context.Context, transactionID string) (*model.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrderByTransactionID", ctx, transactionID)
+	ret0, _ := ret[0].(*model.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrderByTransactionID indicates an expected call of GetOrderByTransactionID
+func (mr *MockOrderServiceMockRecorder) GetOrderByTransactionID(ctx, transactionID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrderByTransactionID", reflect.TypeOf((*MockOrderService)(nil).GetOrderByTransactionID), ctx, transactionID)
+}
+
+// GetOrdersByCustomerID mocks base method
+func (m *MockOrderService) GetOrdersByCustomerID(ctx context.Context, customerID string, page, limit int) (*model.ListOrdersResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrdersByCustomerID", ctx, customerID, page, limit)
+	ret0, _ := ret[0].(*model.ListOrdersResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrdersByCustomerID indicates an expected call of GetOrdersByCustomerID
+func (mr *MockOrderServiceMockRecorder) GetOrdersByCustomerID(ctx, customerID, page, limit interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrdersByCustomerID", reflect.TypeOf((*MockOrderService)(nil).GetOrdersByCustomerID), ctx, customerID, page, limit)
+}
+
+// CancelOrder mocks base method
+func (m *MockOrderService) CancelOrder(ctx context.Context, awbNumber string) (*model.CancelOrderResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CancelOrder", ctx, awbNumber)
+	ret0, _ := ret[0].(*model.CancelOrderResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CancelOrder indicates an expected call of CancelOrder
+func (mr *MockOrderServiceMockRecorder) CancelOrder(ctx, awbNumber interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelOrder", reflect.TypeOf((*MockOrderService)(nil).CancelOrder), ctx, awbNumber)
+}
+
 // MockPricingClient is a mock of PricingClient interface
 type MockPricingClient struct {
 	ctrl     *gomock.Controller

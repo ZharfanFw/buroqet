@@ -23,6 +23,6 @@ WORKDIR /app
 
 COPY --from=builder /app/oms .
 
-EXPOSE 8080
+EXPOSE 8082
 
 CMD ["./oms"]

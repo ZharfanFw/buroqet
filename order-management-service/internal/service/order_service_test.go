@@ -85,7 +85,7 @@ func TestCreateOrder_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.AWBNumber, "AWB number should be generated")
 	assert.NotEmpty(t, resp.PaymentRef, "Payment Ref should be generated")
-	assert.Equal(t, domain.StatusOrderCreated, resp.Status)
+	assert.Equal(t, domain.StatusPaymentPending, resp.Status)
 	assert.Equal(t, 17000.0, resp.TotalCost)
 	assert.NotEmpty(t, resp.PaymentURL, "Non-COD order must have a payment URL")
 }

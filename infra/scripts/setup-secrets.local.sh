@@ -92,6 +92,43 @@ kubectl create configmap auth-config \
 echo "✅ auth-config"
 
 echo ""
+echo "📌 Update ConfigMap order..."
+kubectl create configmap order-config \
+  --namespace="$NAMESPACE" \
+  --from-literal=kafka_broker="$KAFKA_BROKER" \
+  --from-literal=app_port="8080" \
+  --from-literal=pricing_service_url="http://pricing-service:8084" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ order-config"
+
+echo ""
+echo "📌 Update Secret order..."
+POSTGRES_ORDER_URL="postgresql://$POSTGRES_AUTH_USER:$POSTGRES_AUTH_PASSWORD@$POSTGRES_AUTH_HOST:5432/$POSTGRES_AUTH_DB?sslmode=require&search_path=oms"
+kubectl create secret generic order-secret \
+  --namespace="$NAMESPACE" \
+  --from-literal=database_url="$POSTGRES_ORDER_URL" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ order-secret"
+
+echo ""
+echo "📌 Update Secret epod..."
+POSTGRES_EPOD_URL="postgresql://$POSTGRES_AUTH_USER:$POSTGRES_AUTH_PASSWORD@$POSTGRES_AUTH_HOST:5432/$POSTGRES_AUTH_DB?sslmode=require&search_path=epod"
+kubectl create secret generic epod-secret \
+  --namespace="$NAMESPACE" \
+  --from-literal=database_url="$POSTGRES_EPOD_URL" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ epod-secret"
+
+echo ""
+echo "📌 Update ConfigMap epod..."
+kubectl create configmap epod-config \
+  --namespace="$NAMESPACE" \
+  --from-literal=kafka_broker="$KAFKA_BROKER" \
+  --from-literal=app_port="8080" \
+  --dry-run=client -o yaml | kubectl apply -f -
+echo "✅ epod-config"
+
+echo ""
 echo "═══════════════════════════════════════"
 echo "✅ Semua secrets berhasil dibuat!"
 echo "═══════════════════════════════════════"

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"math"
 
 	"order-management-service/internal/domain"
 
@@ -17,6 +18,9 @@ type OrderRepository interface {
 	FindByAWB(ctx context.Context, awbNumber string) (*domain.Order, error)
 	FindByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error)
 	UpdateStatus(ctx context.Context, awbNumber string, status domain.OrderStatus) error
+	FindAll(ctx context.Context, req domain.ListOrdersRequest) (*domain.ListOrdersResponse, error)
+	FindByCustomerID(ctx context.Context, customerID string, page, limit int) (*domain.ListOrdersResponse, error)
+	DeleteByAWB(ctx context.Context, awbNumber string) error
 }
 
 // orderRepository is the GORM-backed implementation of OrderRepository.
@@ -48,11 +52,11 @@ func (r *orderRepository) FindByAWB(ctx context.Context, awbNumber string) (*dom
 	return &order, nil
 }
 
-// FindByTransactionID retrieves an order by its unique transaction ID.
+// FindByTransactionID retrieves an order by its payment reference / transaction ID.
 func (r *orderRepository) FindByTransactionID(ctx context.Context, transactionID string) (*domain.Order, error) {
 	var order domain.Order
 	err := r.db.WithContext(ctx).
-		Where("transaction_id = ?", transactionID).
+		Where("payment_ref = ?", transactionID).
 		First(&order).Error
 	if err != nil {
 		return nil, err
@@ -67,3 +71,61 @@ func (r *orderRepository) UpdateStatus(ctx context.Context, awbNumber string, st
 		Where("awb_number = ?", awbNumber).
 		Update("status", status).Error
 }
+
+// FindAll retrieves a paginated, optionally filtered list of orders.
+// Supports filtering by status and/or customer_id.
+func (r *orderRepository) FindAll(ctx context.Context, req domain.ListOrdersRequest) (*domain.ListOrdersResponse, error) {
+	// Normalise pagination params
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.Limit < 1 || req.Limit > 100 {
+		req.Limit = 10
+	}
+
+	query := r.db.WithContext(ctx).Model(&domain.Order{})
+	if req.Status != "" {
+		query = query.Where("status = ?", req.Status)
+	}
+	if req.CustomerID != "" {
+		query = query.Where("customer_id = ?", req.CustomerID)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, err
+	}
+
+	var orders []domain.Order
+	offset := (req.Page - 1) * req.Limit
+	if err := query.Order("created_at DESC").Offset(offset).Limit(req.Limit).Find(&orders).Error; err != nil {
+		return nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.Limit)))
+
+	return &domain.ListOrdersResponse{
+		Orders:     orders,
+		Total:      total,
+		Page:       req.Page,
+		Limit:      req.Limit,
+		TotalPages: totalPages,
+	}, nil
+}
+
+// FindByCustomerID retrieves a paginated list of orders for a specific customer.
+func (r *orderRepository) FindByCustomerID(ctx context.Context, customerID string, page, limit int) (*domain.ListOrdersResponse, error) {
+	return r.FindAll(ctx, domain.ListOrdersRequest{
+		CustomerID: customerID,
+		Page:       page,
+		Limit:      limit,
+	})
+}
+
+// DeleteByAWB permanently removes an order record by AWB number.
+func (r *orderRepository) DeleteByAWB(ctx context.Context, awbNumber string) error {
+	return r.db.WithContext(ctx).
+		Where("awb_number = ?", awbNumber).
+		Delete(&domain.Order{}).Error
+}
+

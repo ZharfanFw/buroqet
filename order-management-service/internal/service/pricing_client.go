@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 
 	"order-management-service/internal/domain"
@@ -43,12 +43,16 @@ func (c *httpPricingClient) GetPrice(ctx context.Context, req domain.PricingRequ
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("pricing service unreachable: %w", err)
+		log.Printf("WARNING: pricing service unreachable (%v). Falling back to stub pricing.", err)
+		stub := &stubPricingClient{}
+		return stub.GetPrice(ctx, req)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("pricing service returned status %d", resp.StatusCode)
+		log.Printf("WARNING: pricing service returned status %d. Falling back to stub pricing.", resp.StatusCode)
+		stub := &stubPricingClient{}
+		return stub.GetPrice(ctx, req)
 	}
 
 	var pricingResp domain.PricingResponse

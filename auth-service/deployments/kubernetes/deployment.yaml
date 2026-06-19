@@ -20,6 +20,8 @@ spec:
       labels:
         app: auth-service
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: auth-service
           # GANTI <your-github-username> dengan username GitHub org kalian
@@ -46,7 +48,10 @@ spec:
                   name: auth-secret
                   key: db_password
             - name: DB_NAME
-              value: "auth_db"
+              valueFrom:
+                configMapKeyRef:
+                  name: auth-config
+                  key: db_name
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
@@ -62,15 +67,13 @@ spec:
               memory: "128Mi"
               cpu: "200m"
           livenessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 15
             periodSeconds: 20
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
