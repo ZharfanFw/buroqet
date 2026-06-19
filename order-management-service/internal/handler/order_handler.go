@@ -29,6 +29,7 @@ func (h *OrderHandler) RegisterRoutes(r *gin.Engine) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	// 1. Group /api/v1/orders (untuk test dan local dev legacy)
 	v1 := r.Group("/api/v1")
 	{
 		// NOTE: specific sub-paths (/transaction/:id, /customer/:id) must be
@@ -40,6 +41,20 @@ func (h *OrderHandler) RegisterRoutes(r *gin.Engine) {
 		v1.GET("/orders/:awb", h.GetOrderByAWB)
 		v1.PATCH("/orders/:awb/status", h.UpdateOrderStatus)
 		v1.DELETE("/orders/:awb", h.CancelOrder)
+	}
+
+	// 2. Group root / (untuk Ingress rewrite target di AKS)
+	root := r.Group("")
+	{
+		// NOTE: specific sub-paths (/transaction/:id, /customer/:id) must be
+		// registered BEFORE the wildcard route (/:awb) to avoid Gin conflicts.
+		root.GET("/", h.ListOrders)
+		root.POST("/", h.CreateOrder)
+		root.GET("/transaction/:id", h.GetOrderByTransactionID)
+		root.GET("/customer/:id", h.GetOrdersByCustomerID)
+		root.GET("/:awb", h.GetOrderByAWB)
+		root.PATCH("/:awb/status", h.UpdateOrderStatus)
+		root.DELETE("/:awb", h.CancelOrder)
 	}
 }
 
