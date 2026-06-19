@@ -191,10 +191,15 @@ services:
       DB_PORT: 5432
       DB_USER: buroqet
       DB_PASSWORD: buroqet123
-      DB_NAME: buroqet
+      DB_NAME: settlement_db
+      APP_PORT: 8085
+      KAFKA_BROKER: kafka:29092
+      PRICING_SERVICE_URL: http://pricing-service:8084
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     networks: [buroqet-net]
     restart: on-failure
 
@@ -229,10 +234,14 @@ services:
       DB_PORT: 5432
       DB_USER: buroqet
       DB_PASSWORD: buroqet123
-      DB_NAME: buroqet
+      DB_NAME: wms_db
+      APP_PORT: 8087
+      KAFKA_BROKER: kafka:29092
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     networks: [buroqet-net]
     restart: on-failure
 

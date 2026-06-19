@@ -6,17 +6,19 @@ import (
 	"net/http"
 
 	"dispatch-fleet/internal/domain"
+	"dispatch-fleet/internal/kafka"
 )
 
-// DispatchHandler menangani request HTTP terkait dispatching.
 type DispatchHandler struct {
-	service domain.DispatchService
+	service  domain.DispatchService
+	producer kafka.Producer
 }
 
 // NewDispatchHandler membuat instance baru DispatchHandler.
-func NewDispatchHandler(service domain.DispatchService) *DispatchHandler {
+func NewDispatchHandler(service domain.DispatchService, producer kafka.Producer) *DispatchHandler {
 	return &DispatchHandler{
-		service: service,
+		service:  service,
+		producer: producer,
 	}
 }
 
@@ -75,3 +77,42 @@ func (h *DispatchHandler) respondWithJSON(w http.ResponseWriter, code int, paylo
 func (h *DispatchHandler) respondWithError(w http.ResponseWriter, code int, message string) {
 	h.respondWithJSON(w, code, map[string]string{"error": message})
 }
+
+// StartDeliveryRequest mendefinisikan format input JSON untuk memulai pengiriman.
+type StartDeliveryRequest struct {
+	AWB      string `json:"awb"`
+	Location string `json:"location"`
+}
+
+// StartDelivery menangani endpoint POST /v1/dispatch/start-delivery.
+func (h *DispatchHandler) StartDelivery(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req StartDeliveryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.respondWithError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.AWB == "" {
+		h.respondWithError(w, http.StatusBadRequest, "awb is required")
+		return
+	}
+
+	if req.Location == "" {
+		req.Location = "Unknown Location"
+	}
+
+	err := h.producer.PublishPackageDispatched(r.Context(), req.AWB, req.Location)
+	if err != nil {
+		h.respondWithError(w, http.StatusInternalServerError, "Gagal mempublish event package.dispatched")
+		return
+	}
+
+	h.respondWithJSON(w, http.StatusOK, map[string]string{
+		"message": "Pengiriman dimulai, event package.dispatched berhasil dipublish",
+	})
+}

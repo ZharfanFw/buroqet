@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"gorm.io/gorm"
 	"settlement-service/internal/domain"
@@ -17,6 +18,28 @@ func NewSettlementRepository(db *gorm.DB) domain.SettlementRepository {
 
 func (r *settlementRepository) CreateCommissionLog(ctx context.Context, log *domain.CommissionLog) error {
 	return r.db.WithContext(ctx).Create(log).Error
+}
+
+// GetCommissionByAWB mencari CommissionLog berdasarkan AWB.
+// Digunakan untuk mengecek apakah AWB sudah pernah diproses (mencegah duplikat).
+func (r *settlementRepository) GetCommissionByAWB(ctx context.Context, awb string) (*domain.CommissionLog, error) {
+	var log domain.CommissionLog
+	err := r.db.WithContext(ctx).
+		Where("awb = ?", awb).
+		First(&log).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // tidak ditemukan = belum ada, bukan error
+		}
+		return nil, err
+	}
+	return &log, nil
+}
+
+func (r *settlementRepository) GetAllCommissions(ctx context.Context) ([]domain.CommissionLog, error) {
+	var logs []domain.CommissionLog
+	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&logs).Error
+	return logs, err
 }
 
 func (r *settlementRepository) GetCommissionsByCourier(ctx context.Context, courierID string) ([]domain.CommissionLog, error) {

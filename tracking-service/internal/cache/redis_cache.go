@@ -87,29 +87,40 @@ func (c *RedisTrackingCache) DeleteStatus(ctx context.Context, awb string) error
 
 // ConnectRedis membuat koneksi ke Redis dengan connection pool optimal untuk high load
 func ConnectRedis(addr string, password string, db int) (*redis.Client, error) {
-	opts := &redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
+	var opt *redis.Options
 
-		// Connection pool untuk high load (5K-10K RPS)
-		PoolSize:        50,
-		MinIdleConns:    10,
-		DialTimeout:     5 * time.Second,
-		ReadTimeout:     3 * time.Second,
-		WriteTimeout:    3 * time.Second,
-		PoolTimeout:     4 * time.Second,
-		ConnMaxIdleTime: 5 * time.Minute,
+	// Cek apakah addr berupa URL (mendukung rediss:// untuk Upstash)
+	if len(addr) > 8 && (addr[:8] == "redis://" || addr[:9] == "rediss://") {
+		var err error
+		opt, err = redis.ParseURL(addr)
+		if err != nil {
+			return nil, fmt.Errorf("gagal parse redis URL: %w", err)
+		}
+	} else {
+		opt = &redis.Options{
+			Addr:     addr,
+			Password: password,
+			DB:       db,
+		}
 	}
 
-	// Enable TLS if domain belongs to Upstash or indicates a TLS connection
-	if strings.Contains(addr, "upstash.io") || strings.Contains(addr, "rediss://") {
-		opts.TLSConfig = &tls.Config{
+	// Enable TLS if domain belongs to Upstash but wasn't a URL
+	if strings.Contains(addr, "upstash.io") {
+		opt.TLSConfig = &tls.Config{
 			MinVersion: tls.VersionTLS12,
 		}
 	}
 
-	client := redis.NewClient(opts)
+	// Connection pool untuk high load (5K-10K RPS)
+	opt.PoolSize = 50
+	opt.MinIdleConns = 10
+	opt.DialTimeout = 5 * time.Second
+	opt.ReadTimeout = 3 * time.Second
+	opt.WriteTimeout = 3 * time.Second
+	opt.PoolTimeout = 4 * time.Second
+	opt.ConnMaxIdleTime = 5 * time.Minute
+
+	client := redis.NewClient(opt)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

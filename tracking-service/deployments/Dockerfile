@@ -15,9 +15,6 @@ WORKDIR /app
 # Selama dua file ini tidak berubah, Docker tidak akan re-download dependencies
 COPY go.mod go.sum ./
 
-# Tambahkan baris ini agar Go mendownload langsung tanpa lewat proxy default yang mungkin error
-ENV GOPROXY=direct
-
 RUN go mod download
 
 # Baru copy source code (sering berubah, jadi ditaruh belakangan)

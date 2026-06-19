@@ -1,10 +1,11 @@
 module warehouse-service
 
-go 1.25.6
+go 1.23.0
 
 require (
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
+	github.com/segmentio/kafka-go v0.4.51
 	github.com/stretchr/testify v1.11.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
@@ -23,7 +24,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
-	github.com/segmentio/kafka-go v0.4.51 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/text v0.23.0 // indirect

@@ -7,10 +7,10 @@ metadata:
   labels:
     app: warehouse-service
 data:
-  db_host: "GANTI.neon.tech"
-  db_name: "wms_db"
-  kafka_broker: "GANTI_DENGAN_UPSTASH_KAFKA_BROKER"
-  app_port: "8080"
+  db_host: "aws-1-ap-southeast-1.pooler.supabase.com"
+  db_name: "postgres"
+  kafka_broker: "kafka:29092"
+  app_port: "8087"
 ---
 # Secret untuk data sensitif
 apiVersion: v1
@@ -23,5 +23,5 @@ metadata:
 type: Opaque
 # ⚠️ FILE INI JANGAN DI-COMMIT dengan nilai asli
 stringData:
-  db_password: "GANTI"
-  db_user: "GANTI"
+  db_password: "HfuyrF1xd1iUVagY"
+  db_user: "postgres.gvmknmaybejslbghzsov"

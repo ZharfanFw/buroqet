@@ -24,17 +24,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "input tidak valid"})
 		return
 	}
 
 	err := h.authService.Register(input.Name, input.Email, input.Password, input.Role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal registrasi"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gagal registrasi: " + err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Registrasi berhasil"})
+	c.JSON(http.StatusCreated, gin.H{"message": "registrasi berhasil"})
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -44,7 +44,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "input tidak valid"})
 		return
 	}
 
@@ -59,4 +59,43 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"refresh_token": refreshToken,
 		"user":          user,
 	})
+}
+
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var input struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token dibutuhkan"})
+		return
+	}
+
+	newAccess, newRefresh, err := h.authService.RefreshToken(input.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  newAccess,
+		"refresh_token": newRefresh,
+	})
+}
+
+func (h *AuthHandler) Me(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" || len(authHeader) < 8 || authHeader[:7] != "Bearer " {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	tokenString := authHeader[7:]
+
+	user, err := h.authService.ValidateToken(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token tidak valid"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
 }
