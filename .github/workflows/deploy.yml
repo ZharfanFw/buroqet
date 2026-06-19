@@ -223,13 +223,16 @@ jobs:
       - name: Deploy Ingress
         run: kubectl apply -f infra/kubernetes/ingress.yaml
 
-      - name: Get Ingress IP
+      - name: Get Ingress IP and Diagnostics
+        if: always()
         run: |
           echo "=== Ingress Controller Service ==="
           kubectl get svc -n ingress-nginx ingress-nginx-controller || true
           echo "=== Ingress Routing Rules ==="
-          kubectl get ingress -n buroqet
+          kubectl get ingress -n buroqet || true
           echo "=== Pods in buroqet Namespace ==="
-          kubectl get pods -n buroqet
-          echo "=== Endpoints in buroqet Namespace ==="
-          kubectl get endpoints -n buroqet
+          kubectl get pods -n buroqet || true
+          echo "=== Describe Pods ==="
+          kubectl describe pods -n buroqet || true
+          echo "=== Tracking Service Logs ==="
+          kubectl logs -l app=tracking-service -n buroqet --tail=50 || true
